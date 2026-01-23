@@ -22,6 +22,9 @@ public class PTTAccessibilityService extends AccessibilityService {
     private static final int PTT_KEYCODE2 = 520; //Scanner Uravo DT 30
     private static final int PTT_KEYCODE3 = 521; //Scanner Uravo DT 30
     private static final int PTT_KEYCODE4 = 522; //Scanner Uravo DT 30
+    private static final int PTT_KEYCODE5 = 381; //Ulefone Armor 26 WT
+    private static final int PTT_KEYCODE6 = 301; //Ulefone Armor 20 WT
+    private static final int PTT_KEYCODE7 = 131; //Ulefone Armor 18T
     private static final int REMAPPED_PTT_KEYCODE = 142; // Keycode that HyTalk expects (F12)
     
     // InputManager for key remapping on newer Android versions
@@ -159,8 +162,8 @@ public class PTTAccessibilityService extends AccessibilityService {
         int action = event.getAction();
         
         // Handle PTT button events
-        if (keyCode == PTT_KEYCODE1 || keyCode == PTT_KEYCODE2 || keyCode == PTT_KEYCODE3 || keyCode == PTT_KEYCODE4) {
-            boolean isScannerKey = (keyCode == PTT_KEYCODE2 || keyCode == PTT_KEYCODE3 || keyCode == PTT_KEYCODE4);
+        if (keyCode == PTT_KEYCODE1 || keyCode == PTT_KEYCODE2 || keyCode == PTT_KEYCODE3 || keyCode == PTT_KEYCODE4 || keyCode == PTT_KEYCODE5 || keyCode == PTT_KEYCODE6 || keyCode == PTT_KEYCODE7) {
+            boolean isScannerKey = (keyCode == PTT_KEYCODE2 || keyCode == PTT_KEYCODE3 || keyCode == PTT_KEYCODE4 || keyCode == PTT_KEYCODE5 || keyCode == PTT_KEYCODE6 || keyCode == PTT_KEYCODE7);
             // Remap scanner keys (520, 521, 522) to keycode 142 on Android > SDK 22
             boolean shouldRemap = isScannerKey && Build.VERSION.SDK_INT > 22;
             
