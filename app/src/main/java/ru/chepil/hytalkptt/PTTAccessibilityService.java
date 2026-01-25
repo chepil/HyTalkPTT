@@ -230,8 +230,12 @@ public class PTTAccessibilityService extends AccessibilityService {
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> apps = pm.queryIntentActivities(mainIntent, 0);
         
+        String selfPackage = getPackageName().toLowerCase();
         for (ResolveInfo info : apps) {
             String packageName = info.activityInfo.packageName.toLowerCase();
+            if (packageName.equals(selfPackage)) {
+                continue; // Exclude ourselves (ru.chepil.hytalkptt contains "hytalk")
+            }
             if (packageName.contains("hytera") || packageName.contains("hytalk")) {
                 Log.d(TAG, "Found potential HyTalk app: " + packageName);
                 Intent launchIntent = pm.getLaunchIntentForPackage(info.activityInfo.packageName);

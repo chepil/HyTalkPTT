@@ -1,4 +1,5 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
@@ -15,16 +16,20 @@
 
         <TextView
             android:id="@+id/tv_status"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16pt"
             android:layout_marginBottom="24dp"
             android:gravity="start"
+            android:maxLines="20"
             android:padding="8dp"
+
             android:text="Scroll screen...\n\nTo use this app, you need:\n\n1) Set PTT Key code: Tap on 'Configure PTT Key'\n2) Programmable Keys (Motorola) Settings → Programmable Keys → Select PTT Key app → HyTalkPTT\n3) Accessibility Settings → Accessibility → HyTalkPTT → enable the toggle"
             android:textAlignment="center"
             android:textColor="#777777"
             android:textSize="16sp"
-            android:visibility="visible" />
+            android:visibility="visible"
+            tools:ignore="RtlCompat" />
 
         <Button
             android:id="@+id/btn_ptt_key"

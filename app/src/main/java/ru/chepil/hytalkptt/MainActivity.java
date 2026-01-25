@@ -56,38 +56,31 @@ public class MainActivity extends AppCompatActivity {
             
             setupSettingsButtons();
 
-            // If launched from launcher but accessibility service IS enabled, just exit
-            if (isLauncherLaunch && !isPTTButtonPressed && isAccessibilityServiceEnabled) {
-                Log.d(TAG, "Launched from launcher - accessibility service is enabled, exiting");
-                finish();
+            if (isLauncherLaunch && !isPTTButtonPressed) {
+                if (!isAccessibilityServiceEnabled) {
+                    Log.d(TAG, "Launched from launcher - accessibility not enabled, showing setup");
+                    showSetupInstructions();
+                    return;
+                }
+                Log.d(TAG, "Launched from launcher - accessibility enabled, showing MainActivity");
+                TextView statusText = (TextView) findViewById(R.id.tv_status);
+                if (statusText != null) {
+                    statusText.setText("Waiting for PTT press...");
+                }
                 return;
             }
-            
-            // Launched via PTT button (or when app process was restarted)
-            // Launch HyTalk immediately and move MainActivity to background
-            // Hide setup buttons (they should only be visible in setup mode)
+
+            // Launched via PTT or other intent: launch HyTalk and move to background
             Button btnProgrammableKeys = (Button) findViewById(R.id.btn_programmable_keys);
             Button btnAccessibility = (Button) findViewById(R.id.btn_accessibility);
             Button btnPttKey = (Button) findViewById(R.id.btn_ptt_key);
-            if (btnProgrammableKeys != null) {
-                btnProgrammableKeys.setVisibility(View.VISIBLE);
-            }
-            if (btnAccessibility != null) {
-                btnAccessibility.setVisibility(View.VISIBLE);
-            }
-            if (btnPttKey != null) {
-                btnPttKey.setVisibility(View.VISIBLE);
-            }
+            if (btnProgrammableKeys != null) btnProgrammableKeys.setVisibility(View.VISIBLE);
+            if (btnAccessibility != null) btnAccessibility.setVisibility(View.VISIBLE);
+            if (btnPttKey != null) btnPttKey.setVisibility(View.VISIBLE);
 
-            // Set flag to indicate PTT button is pressed
             isPTTButtonPressed = true;
-            wasPTTButtonPressed = false; // Reset to detect new press
-
-            // Launch HyTalk immediately (don't wait for window focus)
-            // PTTAccessibilityService should have already launched it, but we ensure it's launched here too
+            wasPTTButtonPressed = false;
             launchHyTalkIfNeeded();
-            
-            // Immediately move to background so HyTalk can take focus
             moveTaskToBack(true);
         } catch (Exception e) {
             Log.e(TAG, "Error in onCreate", e);
@@ -173,6 +166,14 @@ public class MainActivity extends AppCompatActivity {
 
         // Try to enable accessibility service (may not work, but we try)
         enableAccessibilityService();
+    }
+
+    private void showSetupInstructions() {
+        TextView statusText = (TextView) findViewById(R.id.tv_status);
+        if (statusText != null) {
+            statusText.setText("Scroll screen...\n\nTo use this app, you need:\n\n1) Set PTT Key code: Tap on 'Configure PTT Key'\n2) Programmable Keys (Motorola) Settings → Programmable Keys → Select PTT Key app → HyTalkPTT\n3) Accessibility Settings → Accessibility → HyTalkPTT → enable the toggle");
+            statusText.setVisibility(View.VISIBLE);
+        }
     }
     
     /**
@@ -331,17 +332,10 @@ public class MainActivity extends AppCompatActivity {
                 hyTalkLaunched = false;
             }
         } else {
-            Log.w(TAG, "HyTalk app not found!");
-            String message = "HyTalk app not found! Check logs for installed packages.";
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
-            TextView statusText = (TextView) findViewById(R.id.tv_status);
-            if (statusText != null) {
-                statusText.setText("HyTalk app not found!\nCheck logcat for details");
-            }
-            isPTTButtonPressed = false; // Reset flag
+            Log.w(TAG, "HyTalk app not found - staying on MainActivity");
+            isPTTButtonPressed = false;
             hyTalkLaunched = false;
-            // Search and log all packages containing "hytera" or "hytalk"
-            searchForHyTalkPackages();
+            // No toast, no search; just keep MainActivity visible
         }
     }
 
@@ -361,8 +355,12 @@ public class MainActivity extends AppCompatActivity {
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> apps = pm.queryIntentActivities(mainIntent, 0);
         
+        String selfPackage = getPackageName().toLowerCase();
         for (ResolveInfo info : apps) {
             String packageName = info.activityInfo.packageName.toLowerCase();
+            if (packageName.equals(selfPackage)) {
+                continue; // Exclude ourselves (ru.chepil.hytalkptt contains "hytalk")
+            }
             if (packageName.contains("hytera") || packageName.contains("hytalk")) {
                 Log.d(TAG, "Found potential HyTalk app: " + packageName);
                 Intent launchIntent = pm.getLaunchIntentForPackage(info.activityInfo.packageName);
@@ -386,10 +384,13 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Total installed apps: " + apps.size());
         int foundCount = 0;
         
+        String selfPackage = getPackageName().toLowerCase();
         for (ResolveInfo info : apps) {
             String packageName = info.activityInfo.packageName.toLowerCase();
+            if (packageName.equals(selfPackage)) {
+                continue;
+            }
             String appName = info.loadLabel(pm).toString();
-            
             if (packageName.contains("hytera") || packageName.contains("hytalk") || 
                 appName.toLowerCase().contains("hytalk") || appName.toLowerCase().contains("hytera")) {
                 foundCount++;
