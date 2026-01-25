@@ -141,3 +141,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Author
 
 [Denis Chepil/den@chepil.ru]
+
+### Tested with:
+
+Motorola LEX F10, 
+UROVO DT30, 
+Ulefone models 26WT, 20WT, 13
