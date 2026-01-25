@@ -52,6 +52,14 @@ android {
             // proguardFiles not needed since minifyEnabled is false
         }
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def versionName = variant.versionName
+            def versionCode = variant.versionCode
+            output.outputFileName = "HyTalkPTT-v${versionName}-${versionCode}.apk"
+        }
+    }
 }
 
 dependencies {
