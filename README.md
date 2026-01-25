@@ -1,134 +1,127 @@
 # HyTalkPTT
 
-HyTalkPTT is an Android application designed for Motorola LEX F10 devices that enables the physical PTT (Push-To-Talk) button to activate the HyTalk application.
+HyTalkPTT is an Android application that enables a configurable physical PTT (Push-To-Talk) button to activate the HyTalk application. It works with Motorola LEX F10, UROVO DT30, Ulefone, and other devices whose PTT keycode you configure in the app.
 
 ## Overview
 
-This app intercepts PTT button presses and converts them into broadcast intents that HyTalk recognizes. It uses an Accessibility Service to capture global key events and sends the appropriate `android.intent.action.PTT_DOWN` and `android.intent.action.PTT_UP` broadcast intents to activate PTT functionality in HyTalk.
+The app intercepts PTT button presses and converts them into broadcast intents that HyTalk recognizes. It uses an Accessibility Service to capture global key events and sends `android.intent.action.PTT_DOWN` and `android.intent.action.PTT_UP` broadcasts. The PTT keycode is stored in app preferences (default **228** for Motorola LEX F10) and can be changed via **Configure PTT Key** in the app.
 
 ## Requirements
 
-- **Device**: Motorola LEX F10
-- **Android Version**: Android 5.1.1 (API Level 22)
-- **Target Application**: HyTalk (com.hytera.ocean)
-- **Android Studio**: Latest version with Android SDK
+- **Devices**: Motorola LEX F10 (default keycode 228), UROVO DT30, Ulefone (26WT, 20WT, 18T, etc.), or any device with a configurable PTT keycode
+- **Android**: Android 5.1.1 (API 22)
+- **Target app**: HyTalk (`com.hytera.ocean`)
+- **Android Studio**: Latest with Android SDK
 
 ## Features
 
-- Intercepts physical PTT button presses (keycode 228)
-- Converts PTT events to broadcast intents for HyTalk
-- Automatically launches HyTalk when PTT button is pressed
-- Works even when the app is in the background or killed
+- **Configurable PTT keycode**: Set via **Configure PTT Key** (press your hardware PTT → Save). Default 228 (Motorola LEX F10).
+- Intercepts only the configured PTT key and converts it to broadcast intents for HyTalk
+- Automatically launches or brings HyTalk to foreground when PTT is pressed
+- Works when the app is in the background or was killed
 - Minimal resource usage
 
 ## Setup Instructions
 
-Before using this app, you need to configure two system settings:
+Configure these **three** steps (in order):
 
-### 1. Programmable Keys
+### 1. Set PTT Key code
+
+1. Open **HyTalkPTT** from the launcher.
+2. Tap **Configure PTT Key**.
+3. Press your device’s physical PTT button.
+4. Tap **Save settings**.
+
+The app stores the keycode (e.g. 228 for LEX F10, 520–522 for UROVO DT30, 381/301/131 for Ulefone). You can change it anytime by repeating these steps.
+
+### 2. Programmable Keys
 
 1. Go to **Settings → Programmable Keys**
-2. Select **PTT Key app**
-3. Choose **HyTalkPTT**
+2. Set **PTT Key app** (or equivalent) to **HyTalkPTT**
 
-This allows the app to receive PTT button events when the device is locked or the app is in the background.
+This lets the app receive PTT events when the device is locked or the app is in the background.
 
-### 2. Accessibility Service
+### 3. Accessibility Service
 
 1. Go to **Settings → Accessibility**
-2. Find **HyTalkPTT** in the list
-3. Enable the toggle switch
+2. Find **HyTalkPTT** and enable it
 
-This grants the app permission to intercept key events globally.
+This allows global interception of the PTT key.
 
 ## Building the Project
 
 ### Prerequisites
 
-- Android Studio (latest version)
-- Android SDK with API Level 22
-- JDK 8 or later
+- Android Studio (latest)
+- Android SDK API 22
+- JDK 8+
 
-### Build Steps
+### Build steps
 
-1. Clone the repository:
+1. Clone the repo:
    ```bash
    git clone https://github.com/chepil/HyTalkPTT.git
    cd HyTalkPTT
    ```
 
-2. Open the project in Android Studio:
-   - File → Open → Select the project directory
+2. Open the project in Android Studio and sync Gradle.
 
-3. Sync Gradle files (Android Studio will prompt you, or click "Sync Now")
-
-4. Build the project:
-   - Build → Make Project (Ctrl+F9 / Cmd+F9)
-   - Or use: `./gradlew assembleDebug`
-
-5. Install on device:
-   - Connect your Motorola LEX F10 device via USB
-   - Enable USB debugging on the device
-   - Run → Run 'app' (Shift+F10 / Ctrl+R)
-
-Alternatively, build and install using command line:
-```bash
-./gradlew installDebug
-```
+3. Build and install:
+   ```bash
+   ./gradlew installDebug
+   ```
+   Or: **Build → Make Project**, then **Run → Run 'app'** with the device connected via USB (USB debugging enabled).
 
 ## How It Works
 
-1. **Physical PTT Button Press**: When you press the physical PTT button on the Motorola LEX F10, it generates a key event with keycode 228.
+1. **Configured PTT keycode**: The app uses a single keycode from **SharedPreferences** (default **228**). You set it in **Configure PTT Key**.
 
-2. **Accessibility Service Interception**: The `PTTAccessibilityService` intercepts this key event globally (even when the app is in the background).
+2. **Key event interception**: `PTTAccessibilityService` receives global key events and reacts only when `keyCode` matches the stored value.
 
-3. **Broadcast Intent Conversion**: The service converts the key event into a broadcast intent:
-   - `ACTION_DOWN` → `android.intent.action.PTT_DOWN`
+3. **Broadcast intents**:  
+   - `ACTION_DOWN` → `android.intent.action.PTT_DOWN`  
    - `ACTION_UP` → `android.intent.action.PTT_UP`
 
-4. **HyTalk Activation**: HyTalk listens for these broadcast intents and activates its PTT functionality accordingly.
+4. **HyTalk**: Listens for these broadcasts and activates PTT.
 
-5. **App Launch**: If HyTalk is not running, the app automatically launches it when PTT is pressed.
+5. **Launch**: If HyTalk is not running, the app launches it (or brings it to foreground) when PTT is pressed.
 
 ## Technical Details
 
-- **Min SDK Version**: 22 (Android 5.1.1)
-- **Target SDK Version**: 22 (Android 5.1.1)
-- **Compile SDK Version**: 22
-- **Package Name**: `ru.chepil.hytalkptt`
-- **Key Components**:
-  - `MainActivity`: Handles app lifecycle and HyTalk launch logic
-  - `PTTAccessibilityService`: Intercepts PTT button events and sends broadcast intents
+- **Min/Target/Compile SDK**: 22 (Android 5.1.1)
+- **Package**: `ru.chepil.hytalkptt`
+- **Components**:
+  - **MainActivity**: App entry, setup UI, HyTalk launch.
+  - **PttKeySetupActivity**: “Configure PTT Key” — detect hardware key, show keycode, save to preferences.
+  - **PttPreferences**: Stores PTT keycode in `SharedPreferences` (default 228).
+  - **PTTAccessibilityService**: Intercepts only the configured keycode and sends PTT broadcasts.
 
 ## Permissions
 
-The app requires the following permissions:
-
-- `BIND_ACCESSIBILITY_SERVICE`: Required for the accessibility service to intercept key events
-- `SYSTEM_ALERT_WINDOW`: (Optional, not currently used)
+- **BIND_ACCESSIBILITY_SERVICE**: For intercepting key events.
+- **SYSTEM_ALERT_WINDOW**: Optional, not used currently.
 
 ## Troubleshooting
 
-### PTT button doesn't work
+### PTT button has no effect
 
-1. Verify that **Programmable Keys** is configured (Settings → Programmable Keys → Select PTT Key app → HyTalkPTT)
-2. Verify that **Accessibility Service** is enabled (Settings → Accessibility → HyTalkPTT → Enable)
-3. Check logcat for error messages:
+1. Set **Configure PTT Key** (press PTT, then Save).
+2. Configure **Programmable Keys** (PTT Key app → HyTalkPTT).
+3. Enable **Accessibility** for HyTalkPTT.
+4. Check logcat:
    ```bash
    adb logcat | grep -i "HyTalkPTT\|PTTAccessibilityService"
    ```
 
-### HyTalk doesn't launch
+### HyTalk doesn’t launch
 
-1. Verify that HyTalk app (com.hytera.ocean) is installed on the device
-2. Check logcat for launch errors
-3. Verify that the app has permission to launch other applications
+1. Install HyTalk (`com.hytera.ocean`).
+2. Check logcat for launch errors.
 
-### Broadcast intents not received by HyTalk
+### Wrong key detected
 
-- This is expected behavior - HyTalk handles the broadcast intents internally
-- Verify that PTT functionality works in HyTalk when pressing the physical button
-- Check logcat to confirm broadcast intents are being sent
+- Open **Configure PTT Key**, press your PTT, confirm the shown keycode, then **Save settings**.  
+- On some devices, PTT may use different keycodes (e.g. 520, 521, 522 for UROVO DT30).
 
 ## License
 
@@ -140,10 +133,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Author
 
-[Denis Chepil/den@chepil.ru]
+Denis Chepil — den@chepil.ru
 
-## Tested with:
+## Tested with
 
-- Motorola LEX F10, 
-- UROVO DT30, 
-- Ulefone models 26WT, 20WT, 13
+- Motorola LEX F10 (default keycode 228)
+- UROVO DT30 (keycodes 520, 521, 522)
+- Ulefone Armor 26 WT, 20 WT, 18T (e.g. 381, 301, 131)
