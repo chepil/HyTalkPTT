@@ -85,15 +85,23 @@ jobs:
         APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
         echo "Analyzing: $APK_PATH"
 
+        # Find aapt2 reliably (pick the latest version available)
+        AAPT2=$(find "$ANDROID_HOME/build-tools" -name "aapt2" -type f | sort -V | tail -1)
+        if [ -z "$AAPT2" ]; then
+          echo "❌ ERROR: aapt2 not found in $ANDROID_HOME/build-tools"
+          exit 1
+        fi
+        echo "Using: $AAPT2"
+
         # Extract APK info using aapt2
-        AAPT_OUTPUT=$($ANDROID_HOME/build-tools/*/aapt2 dump badging "$APK_PATH" 2>/dev/null || $ANDROID_HOME/build-tools/34.0.0/aapt2 dump badging "$APK_PATH")
+        AAPT_OUTPUT=$("$AAPT2" dump badging "$APK_PATH")
 
         # Extract SDK versions
-        MIN_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "minSdkVersion:'\K[0-9]+")
-        TARGET_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "targetSdkVersion:'\K[0-9]+")
-        PACKAGE=$(echo "$AAPT_OUTPUT" | grep -oP "package: name='\K[^']+")
-        VERSION_NAME=$(echo "$AAPT_OUTPUT" | grep -oP "versionName='\K[^']+")
-        VERSION_CODE=$(echo "$AAPT_OUTPUT" | grep -oP "versionCode='\K[^']+")
+        MIN_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "minSdkVersion:'\K[0-9]+" || echo "")
+        TARGET_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "targetSdkVersion:'\K[0-9]+" || echo "")
+        PACKAGE=$(echo "$AAPT_OUTPUT" | grep -oP "package: name='\K[^']+" || echo "")
+        VERSION_NAME=$(echo "$AAPT_OUTPUT" | grep -oP "versionName='\K[^']+" || echo "")
+        VERSION_CODE=$(echo "$AAPT_OUTPUT" | grep -oP "versionCode='\K[^']+" || echo "")
 
         echo ""
         echo "Package:        $PACKAGE"
@@ -123,12 +131,14 @@ jobs:
         fi
 
         # Warn if targetSdk seems too old or too new
-        if [ "$TARGET_SDK" -lt "28" ]; then
-          echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK is quite old"
-        elif [ "$TARGET_SDK" -gt "36" ]; then
-          echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK - verify device compatibility"
-        else
-          echo "✅ targetSdkVersion = $TARGET_SDK"
+        if [ -n "$TARGET_SDK" ]; then
+          if [ "$TARGET_SDK" -lt "28" ]; then
+            echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK is quite old"
+          elif [ "$TARGET_SDK" -gt "36" ]; then
+            echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK - verify device compatibility"
+          else
+            echo "✅ targetSdkVersion = $TARGET_SDK"
+          fi
         fi
 
         echo ""
