@@ -3,16 +3,40 @@ name: Android CI
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: true
+        default: 'main'
+        type: string
+      create_release:
+        description: 'Create a GitHub release'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release tag (leave empty for auto-versioning from build.gradle)'
+        required: false
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      apk_name: ${{ steps.version.outputs.apk_name }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.branch || github.ref }}
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -32,6 +56,17 @@ jobs:
           -keyalg RSA -keysize 2048 -validity 10000 \
           -dname "CN=Android Debug,O=Android,C=US"
 
+    - name: Extract version info
+      id: version
+      run: |
+        VERSION_NAME=$(grep -oP 'versionName\s+"\K[^"]+' app/build.gradle)
+        VERSION_CODE=$(grep -oP 'versionCode\s+\K\d+' app/build.gradle)
+        APK_NAME="HyTalkPTT-v${VERSION_NAME}-${VERSION_CODE}"
+        echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+        echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
+        echo "apk_name=${APK_NAME}" >> $GITHUB_OUTPUT
+        echo "Building version ${VERSION_NAME} (code: ${VERSION_CODE})"
+
     - name: Run Lint
       run: ./gradlew lint
 
@@ -44,14 +79,14 @@ jobs:
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
-        name: debug-apk
+        name: ${{ steps.version.outputs.apk_name }}-debug
         path: app/build/outputs/apk/debug/*.apk
         retention-days: 14
 
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: release-apk
+        name: ${{ steps.version.outputs.apk_name }}-release
         path: app/build/outputs/apk/release/*.apk
         retention-days: 14
 
@@ -62,3 +97,61 @@ jobs:
         name: lint-report
         path: app/build/reports/lint-results*.html
         retention-days: 14
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.inputs.branch || github.ref }}
+
+    - name: Download Release APK
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ needs.build.outputs.apk_name }}-release
+        path: ./release-apk
+
+    - name: Determine release tag
+      id: release_tag
+      run: |
+        if [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          TAG="${{ github.ref_name }}"
+        elif [ -n "${{ github.event.inputs.release_tag }}" ]; then
+          TAG="${{ github.event.inputs.release_tag }}"
+        else
+          TAG="v${{ needs.build.outputs.version_name }}"
+        fi
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Release tag: ${TAG}"
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.release_tag.outputs.tag }}
+        name: Release ${{ steps.release_tag.outputs.tag }}
+        body: |
+          ## HyTalkPTT ${{ steps.release_tag.outputs.tag }}
+
+          **Version**: ${{ needs.build.outputs.version_name }} (code: ${{ needs.build.outputs.version_code }})
+          **Branch**: ${{ github.event.inputs.branch || github.ref_name }}
+
+          ### Changes
+          See [commit history](https://github.com/${{ github.repository }}/commits/${{ steps.release_tag.outputs.tag }}) for details.
+
+          ### Installation
+          1. Download the APK below
+          2. Enable "Install from unknown sources" if prompted
+          3. Install and follow the setup instructions in the app
+        files: ./release-apk/*.apk
+        draft: false
+        prerelease: ${{ contains(steps.release_tag.outputs.tag, '-') }}
+        generate_release_notes: true
