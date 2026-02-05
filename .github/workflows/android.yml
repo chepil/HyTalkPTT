@@ -190,7 +190,7 @@ jobs:
         ref: ${{ github.event.inputs.branch || github.ref }}
 
     - name: Download Release APK
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: ${{ needs.build.outputs.apk_name }}-release
         path: ./release-apk
