@@ -4,6 +4,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
+        // PINNED: AGP 8.1.x supports compileSdkVersion 22 for legacy device compatibility
+        // Major version upgrades may drop support for older SDK levels
+        // Test thoroughly before upgrading: ./gradlew assembleDebug
         classpath 'com.android.tools.build:gradle:8.1.0'
     }
 }
@@ -12,5 +15,19 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Dependency Locking - Ensures reproducible builds
+// ══════════════════════════════════════════════════════════════════════════════
+// To update lock files after intentional dependency changes:
+//   ./gradlew dependencies --write-locks
+//
+// Lock files are in gradle/dependency-locks/ and should be committed to git
+// ══════════════════════════════════════════════════════════════════════════════
+subprojects {
+    dependencyLocking {
+        lockAllConfigurations()
     }
 }

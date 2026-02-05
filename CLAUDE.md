@@ -65,6 +65,42 @@ PTTAccessibilityService.onKeyEvent()  ← Global key interception via Accessibil
 - UROVO DT30: 520, 521, 522
 - Ulefone (26WT, 20WT, 18T): 381, 301, 131
 
+## Compatibility Protection
+
+This project has multiple safeguards to ensure builds work on all supported devices (especially Motorola LEX F10 on Android 5.1.1):
+
+### Automated Protections
+
+| Layer | What It Does |
+|-------|--------------|
+| **Dependabot ignore rules** | Blocks upgrades to `appcompat-v7` and major AGP versions |
+| **Lint `NewApi` check** | Fails build if code uses APIs above minSdkVersion |
+| **CI APK validation** | Verifies minSdkVersion=22 in built APK |
+| **Dependency locking** | Prevents transitive dependency drift |
+
+### Baseline Reference
+
+See `.github/compatibility-baseline.yml` for documented v1.4 compatibility requirements.
+
+### After Dependency Changes
+
+```bash
+# Regenerate dependency lock files
+./gradlew dependencies --write-locks
+
+# Verify build still works
+./gradlew clean assembleRelease
+
+# Run lint to check for API compatibility issues
+./gradlew lint
+```
+
+### DO NOT Change Without Hardware Testing
+
+- `compileSdkVersion` (must stay 22)
+- `minSdkVersion` (must stay 22)
+- `appcompat-v7` version (must match compileSdkVersion)
+
 ## Debug Logging
 
 ```bash
