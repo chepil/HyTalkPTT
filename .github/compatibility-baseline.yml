@@ -1,0 +1,61 @@
+# HyTalkPTT Compatibility Baseline
+# =================================
+# This file documents the build requirements for device compatibility.
+# Based on confirmed working release v1.4
+#
+# CI validates APK attributes against these requirements.
+# DO NOT modify without testing on actual hardware!
+
+baseline_version: "1.4"
+
+# SDK Requirements
+sdk:
+  min_sdk_version: 22          # Android 5.1.1 - REQUIRED for LEX F10
+  compile_sdk_version: 22      # Must match appcompat version
+  target_sdk_version: 36       # Can be higher for Play Store compliance
+  java_version: "1.8"
+
+# Package Identity
+package:
+  application_id: "ru.chepil.hytalkptt"
+
+# Dependencies (pinned for compatibility)
+dependencies:
+  appcompat: "com.android.support:appcompat-v7:22.2.1"
+  gradle_plugin: "com.android.tools.build:gradle:8.1.x"
+
+# Supported Devices
+# These devices have been tested with v1.4
+devices:
+  - name: "Motorola LEX F10"
+    android_version: "5.1.1"
+    api_level: 22
+    ptt_keycode: 228
+    status: "confirmed_working"
+
+  - name: "UROVO DT30"
+    ptt_keycodes: [520, 521, 522]
+    status: "confirmed_working"
+
+  - name: "Ulefone 26WT"
+    ptt_keycode: 381
+    status: "confirmed_working"
+
+  - name: "Ulefone 20WT"
+    ptt_keycode: 301
+    status: "confirmed_working"
+
+  - name: "Ulefone 18T"
+    ptt_keycode: 131
+    status: "confirmed_working"
+
+# Validation Rules (enforced by CI)
+validation:
+  - rule: "minSdkVersion must be 22"
+    reason: "Required for Android 5.1.1 device support"
+
+  - rule: "appcompat version must match compileSdkVersion"
+    reason: "Mismatched versions cause runtime crashes on older devices"
+
+  - rule: "No NewApi lint errors"
+    reason: "Using APIs above minSdk causes crashes on older devices"

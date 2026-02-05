@@ -76,6 +76,71 @@ jobs:
     - name: Build Release APK
       run: ./gradlew assembleRelease
 
+    - name: Validate APK Compatibility
+      run: |
+        echo "═══════════════════════════════════════════════════════════"
+        echo "APK Compatibility Validation"
+        echo "═══════════════════════════════════════════════════════════"
+
+        APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+        echo "Analyzing: $APK_PATH"
+
+        # Extract APK info using aapt2
+        AAPT_OUTPUT=$($ANDROID_HOME/build-tools/*/aapt2 dump badging "$APK_PATH" 2>/dev/null || $ANDROID_HOME/build-tools/34.0.0/aapt2 dump badging "$APK_PATH")
+
+        # Extract SDK versions
+        MIN_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "minSdkVersion:'\K[0-9]+")
+        TARGET_SDK=$(echo "$AAPT_OUTPUT" | grep -oP "targetSdkVersion:'\K[0-9]+")
+        PACKAGE=$(echo "$AAPT_OUTPUT" | grep -oP "package: name='\K[^']+")
+        VERSION_NAME=$(echo "$AAPT_OUTPUT" | grep -oP "versionName='\K[^']+")
+        VERSION_CODE=$(echo "$AAPT_OUTPUT" | grep -oP "versionCode='\K[^']+")
+
+        echo ""
+        echo "Package:        $PACKAGE"
+        echo "Version:        $VERSION_NAME ($VERSION_CODE)"
+        echo "minSdkVersion:  $MIN_SDK"
+        echo "targetSdk:      $TARGET_SDK"
+        echo ""
+
+        # Validate compatibility requirements
+        ERRORS=0
+
+        # Check minSdkVersion = 22 (Android 5.1.1 for LEX F10)
+        if [ "$MIN_SDK" != "22" ]; then
+          echo "❌ ERROR: minSdkVersion is $MIN_SDK, expected 22"
+          echo "   This will break compatibility with Motorola LEX F10!"
+          ERRORS=$((ERRORS + 1))
+        else
+          echo "✅ minSdkVersion = 22 (Android 5.1.1 compatible)"
+        fi
+
+        # Check package name hasn't changed
+        if [ "$PACKAGE" != "ru.chepil.hytalkptt" ]; then
+          echo "❌ ERROR: Package name changed to $PACKAGE"
+          ERRORS=$((ERRORS + 1))
+        else
+          echo "✅ Package name correct"
+        fi
+
+        # Warn if targetSdk seems too old or too new
+        if [ "$TARGET_SDK" -lt "28" ]; then
+          echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK is quite old"
+        elif [ "$TARGET_SDK" -gt "36" ]; then
+          echo "⚠️  WARNING: targetSdkVersion $TARGET_SDK - verify device compatibility"
+        else
+          echo "✅ targetSdkVersion = $TARGET_SDK"
+        fi
+
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+
+        if [ $ERRORS -gt 0 ]; then
+          echo "❌ COMPATIBILITY CHECK FAILED - $ERRORS error(s)"
+          exit 1
+        else
+          echo "✅ COMPATIBILITY CHECK PASSED"
+        fi
+
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:

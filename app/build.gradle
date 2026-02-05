@@ -1,6 +1,17 @@
 apply plugin: 'com.android.application'
 
 android {
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMPATIBILITY NOTICE: compileSdkVersion 22 is INTENTIONAL
+    // ══════════════════════════════════════════════════════════════════════════
+    // This app targets rugged Android devices running Android 5.1.1 (API 22):
+    //   - Motorola LEX F10 (keycode 228)
+    //   - UROVO DT30 (keycodes 520, 521, 522)
+    //   - Ulefone devices (keycodes 381, 301, 131)
+    //
+    // DO NOT upgrade compileSdkVersion without testing on actual hardware!
+    // The appcompat dependency version MUST match compileSdkVersion.
+    // ══════════════════════════════════════════════════════════════════════════
     compileSdkVersion 22
     namespace 'ru.chepil.hytalkptt'
 
@@ -18,8 +29,24 @@ android {
     }
     
     lint {
-        abortOnError false
-        disable 'ExpiredTargetSdkVersion'
+        // Fail the build if we accidentally use APIs newer than minSdk
+        // This is critical for device compatibility
+        checkReleaseBuilds true
+        abortOnError true
+
+        // Treat NewApi as error - catches code using APIs above minSdkVersion
+        error 'NewApi'
+
+        // These are expected/acceptable for our legacy device support:
+        // - ExpiredTargetSdkVersion: Play Store warning, not a device issue
+        // - OldTargetApi: We intentionally use compileSdk 22
+        // - GradleCompatible: compileSdk 22 < targetSdk 36 is intentional
+        // - ProtectedPermissions: WRITE_SECURE_SETTINGS is pre-granted on rugged devices
+        disable 'ExpiredTargetSdkVersion', 'OldTargetApi', 'GradleCompatible', 'ProtectedPermissions'
+
+        // Generate detailed reports for review
+        htmlReport true
+        xmlReport true
     }
 
     signingConfigs {
@@ -63,5 +90,8 @@ android {
 }
 
 dependencies {
+    // PINNED: appcompat version must match compileSdkVersion (22)
+    // Newer versions require higher compile SDK and break device compatibility
+    // See: https://developer.android.com/topic/libraries/support-library/revisions
     implementation 'com.android.support:appcompat-v7:22.2.1'
 }

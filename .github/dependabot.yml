@@ -12,6 +12,17 @@ updates:
     labels:
       - "dependencies"
       - "gradle"
+    # IMPORTANT: These dependencies are pinned for Android 5.1.1 (API 22) compatibility
+    # Required for Motorola LEX F10 and similar rugged devices
+    ignore:
+      # appcompat-v7:22.2.1 MUST match compileSdkVersion 22
+      # Upgrading breaks builds for older devices
+      - dependency-name: "com.android.support:appcompat-v7"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+      # AGP 8.1.x is the last version with reliable compileSdk 22 support
+      # Later versions may deprecate or remove support for older SDK levels
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
