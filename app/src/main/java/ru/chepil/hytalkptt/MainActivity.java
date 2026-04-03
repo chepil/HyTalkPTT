@@ -1,6 +1,5 @@
 package ru.chepil.hytalkptt;
 
-import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -12,7 +11,6 @@ import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.view.accessibility.AccessibilityManager;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -35,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
     // Track previous state of isPTTButtonPressed to detect new presses
     private boolean wasPTTButtonPressed = false;
 
+    /** True when opened from launcher without a PTT press — refresh accessibility state in onResume. */
+    private boolean mLauncherNoPttFlow;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = getIntent();
             boolean isLauncherLaunch = Intent.ACTION_MAIN.equals(intent.getAction()) && 
                                        intent.hasCategory(Intent.CATEGORY_LAUNCHER);
-            
+            mLauncherNoPttFlow = isLauncherLaunch && !isPTTButtonPressed;
+
             // Set content view first (needed for checking accessibility service)
             setContentView(R.layout.activity_main);
             
@@ -95,38 +97,35 @@ public class MainActivity extends AppCompatActivity {
      * @return true if the accessibility service is enabled, false otherwise
      */
     private boolean isAccessibilityServiceEnabled() {
-        try {
-            AccessibilityManager am = (AccessibilityManager) getSystemService(Context.ACCESSIBILITY_SERVICE);
-            if (am == null) {
-                Log.w(TAG, "AccessibilityManager is null");
-                return false;
-            }
-            
-            // Get the component name for our accessibility service
+        boolean enabled = PttAccessibilityHelper.isHyTalkPttServiceEnabled(this);
+        if (!enabled) {
             ComponentName serviceComponent = new ComponentName(this, PTTAccessibilityService.class);
-            String serviceName = serviceComponent.flattenToString();
-            
-            // Get list of enabled accessibility services
-            List<AccessibilityServiceInfo> enabledServices = am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK);
-            
-            if (enabledServices != null) {
-                for (AccessibilityServiceInfo serviceInfo : enabledServices) {
-                    String enabledServiceId = serviceInfo.getId();
-                    if (serviceName.equals(enabledServiceId)) {
-                        return true;
-                    }
-                }
+            Log.d(TAG, "HyTalkPTT accessibility OFF (match any of: " + serviceComponent.flattenToString()
+                    + " or " + getPackageName() + "/" + PTTAccessibilityService.class.getName() + ")");
+        }
+        return enabled;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!mLauncherNoPttFlow || isPTTButtonPressed) {
+            return;
+        }
+        if (PttAccessibilityHelper.isHyTalkPttServiceEnabled(this)) {
+            TextView statusText = (TextView) findViewById(R.id.tv_status);
+            if (statusText != null) {
+                statusText.setText("Waiting for PTT press...");
             }
-            return false;
-        } catch (Exception e) {
-            Log.e(TAG, "Error checking accessibility service status", e);
-            return false;
+            Log.d(TAG, "Launcher flow: accessibility is ON — status refreshed after resume");
+        } else {
+            showSetupInstructions();
         }
     }
 
     /**
      * Shows setup instructions on the screen.
-     * Displays instructions to configure Programmable Keys and Accessibility.
+     * Buttons are ordered: Accessibility, then PTT Key, then Configure Programmable Keys (for Motorola).
      */
     private void setupSettingsButtons() {
         Button btnProgrammableKeys = (Button) findViewById(R.id.btn_programmable_keys);
@@ -171,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
     private void showSetupInstructions() {
         TextView statusText = (TextView) findViewById(R.id.tv_status);
         if (statusText != null) {
-            statusText.setText("Scroll screen...\n\nTo use this app, you need:\n\n1) Set PTT Key code: Tap on 'Configure PTT Key'\n2) Programmable Keys (Motorola) Settings → Programmable Keys → Select PTT Key app → HyTalkPTT\n3) Accessibility Settings → Accessibility → HyTalkPTT → enable the toggle");
+            statusText.setText(R.string.main_setup_instructions);
             statusText.setVisibility(View.VISIBLE);
         }
     }
@@ -225,16 +224,14 @@ public class MainActivity extends AppCompatActivity {
         try {
             ContentResolver resolver = getContentResolver();
             String enabledServices = Settings.Secure.getString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
-            
-            // Get the component name for our accessibility service
+
             ComponentName serviceComponent = new ComponentName(this, PTTAccessibilityService.class);
             String serviceName = serviceComponent.flattenToString();
-            
+
             Log.d(TAG, "Current enabled accessibility services: " + enabledServices);
-            Log.d(TAG, "Service component name: " + serviceName);
-            
-            // Check if service is already enabled
-            if (enabledServices != null && enabledServices.contains(serviceName)) {
+            Log.d(TAG, "Service component name (short form): " + serviceName);
+
+            if (PttAccessibilityHelper.isHyTalkPttServiceEnabled(this)) {
                 Log.d(TAG, "Accessibility service is already enabled");
                 return;
             }

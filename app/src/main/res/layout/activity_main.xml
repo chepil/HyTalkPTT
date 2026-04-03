@@ -24,12 +24,24 @@
             android:maxLines="20"
             android:padding="8dp"
 
-            android:text="Scroll screen...\n\nTo use this app, you need:\n\n1) Set PTT Key code: Tap on 'Configure PTT Key'\n2) Programmable Keys (Motorola) Settings → Programmable Keys → Select PTT Key app → HyTalkPTT\n3) Accessibility Settings → Accessibility → HyTalkPTT → enable the toggle"
+            android:text="@string/main_setup_instructions"
             android:textAlignment="center"
             android:textColor="#777777"
             android:textSize="16sp"
             android:visibility="visible"
             tools:ignore="RtlCompat" />
+
+        <Button
+            android:id="@+id/btn_accessibility"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="#111111"
+            android:padding="16dp"
+            android:text="Configure Accessibility"
+            android:textColor="#999999"
+            android:textSize="16sp"
+            android:visibility="visible" />
 
         <Button
             android:id="@+id/btn_ptt_key"
@@ -47,21 +59,9 @@
             android:id="@+id/btn_programmable_keys"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
             android:background="#111111"
             android:padding="16dp"
-            android:text="Configure Programmable Keys"
-            android:textColor="#999999"
-            android:textSize="16sp"
-            android:visibility="visible" />
-
-        <Button
-            android:id="@+id/btn_accessibility"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#111111"
-            android:padding="16dp"
-            android:text="Configure Accessibility"
+            android:text="@string/main_configure_programmable_keys"
             android:textColor="#999999"
             android:textSize="16sp"
             android:visibility="visible" />

@@ -1,44 +1,100 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
-    android:gravity="center_vertical"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/tv_instruction"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="16dp"
-        android:text="Press PTT button"
-        android:textColor="#AAAAAA"
-        android:textSize="18sp" />
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tv_key_code"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:gravity="center"
-        android:minHeight="80dp"
-        android:padding="16dp"
-        android:text="—"
-        android:textColor="#999999"
-        android:textSize="16sp" />
+        <TextView
+            android:id="@+id/tv_instruction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="@string/ptt_setup_instruction"
+            android:textColor="#AAAAAA"
+            android:textSize="16sp" />
 
-    <Button
-        android:id="@+id/btn_save_settings"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:background="#111111"
-        android:padding="16dp"
-        android:text="Save settings"
-        android:textColor="#EEEEEE"
-        android:textSize="16sp" />
+        <CheckBox
+            android:id="@+id/cb_ptt_hardware"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/ptt_checkbox_button_tint"
+            android:paddingTop="8dp"
+            android:text="@string/ptt_source_hardware"
+            android:textColor="#CCCCCC" />
 
-</LinearLayout>
+        <CheckBox
+            android:id="@+id/cb_ptt_bluetooth"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/ptt_checkbox_button_tint"
+            android:text="@string/ptt_source_bluetooth"
+            android:textColor="#CCCCCC" />
+
+        <TextView
+            android:id="@+id/tv_save_bluetooth_reminder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:text="@string/ptt_save_bluetooth_reminder"
+            android:textColor="#FFAA66"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_bluetooth_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:text="@string/ptt_bluetooth_hint"
+            android:textColor="#777777"
+            android:textSize="13sp" />
+
+        <CheckBox
+            android:id="@+id/cb_bt_include_media_play"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/ptt_checkbox_button_tint"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:text="@string/ptt_bt_include_media_play"
+            android:textColor="#CCCCCC"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tv_key_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:gravity="center"
+            android:minHeight="80dp"
+            android:padding="16dp"
+            android:text="—"
+            android:textColor="#999999"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btn_save_settings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="16dp"
+            android:background="#111111"
+            android:padding="16dp"
+            android:text="Save settings"
+            android:textColor="#EEEEEE"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+</ScrollView>

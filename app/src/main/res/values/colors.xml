@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Visible on black screen; system dark theme was drawing default checkbox near-black -->
+    <color name="ptt_checkbox_button_tint">#E0E0E0</color>
+</resources>
