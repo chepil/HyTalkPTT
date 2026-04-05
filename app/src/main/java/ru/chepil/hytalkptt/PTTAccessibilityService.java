@@ -70,6 +70,9 @@ public class PTTAccessibilityService extends AccessibilityService {
 
     private BroadcastReceiver mVendorHeadsetReceiver;
     private boolean mVendorHeadsetRegistered;
+    /** Logs uncategorized {@link BluetoothHeadset#ACTION_VENDOR_SPECIFIC_HEADSET_EVENT} (HD2 / other OEMs). */
+    private BroadcastReceiver mVendorProbeLooseReceiver;
+    private boolean mVendorProbeLooseRegistered;
 
     /** Drops duplicate DOWN from MediaSession + {@link BluetoothMediaButtonReceiver} within this window. */
     private long mLastPttDownHandledTimeMs;
@@ -98,6 +101,12 @@ public class PTTAccessibilityService extends AccessibilityService {
     private boolean mBluetoothPttDebounceSkippedFirstDown;
 
     /**
+     * When {@link PttPreferences#isBluetoothPttMediaToggleLatch} is true: first tap starts TX, second tap ends it.
+     */
+    private boolean mBluetoothPttMediaLatched;
+    private long mLastBluetoothToggleDownWallMs;
+
+    /**
      * Exclusive music-stream focus so the system routes headset play/pause to our {@link MediaSession}
      * instead of the default Music app (common on Huawei when we never held focus).
      */
@@ -109,7 +118,16 @@ public class PTTAccessibilityService extends AccessibilityService {
                 @Override
                 public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
                     if (PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH.equals(key)
-                            || PttPreferences.PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY.equals(key)) {
+                            || PttPreferences.PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY.equals(key)
+                            || PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH.equals(key)) {
+                        if (PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH.equals(key)
+                                && !sharedPreferences.getBoolean(PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH, false)) {
+                            clearBluetoothMediaToggleLatchIfTransmitting();
+                        }
+                        if (PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH.equals(key)
+                                && !sharedPreferences.getBoolean(PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH, false)) {
+                            clearBluetoothMediaToggleLatchIfTransmitting();
+                        }
                         updateBluetoothMediaSession();
                     }
                 }
@@ -531,6 +549,9 @@ public class PTTAccessibilityService extends AccessibilityService {
      * Bluetooth AVRCP / media-button path: same hold refresh as {@link #deliverVendorHeadsetPtt(boolean)}.
      */
     private boolean handleBluetoothMediaPttKeyEvent(KeyEvent event) {
+        if (PttPreferences.isBluetoothPttMediaToggleLatch(this)) {
+            return handleBluetoothMediaToggleLatch(event);
+        }
         if (event.getAction() == KeyEvent.ACTION_UP) {
             stopBluetoothPttHoldRepeat();
         }
@@ -540,6 +561,54 @@ public class PTTAccessibilityService extends AccessibilityService {
             startBluetoothPttHoldRepeat();
         }
         return handled;
+    }
+
+    /**
+     * Headsets such as Retevis / Ailunce HD2 send PLAY/PAUSE as an immediate DOWN+UP; Android never delivers a
+     * long press. Toggle mode: ignore UP, each DOWN flips latched TX (with hold-refresh) on/off.
+     */
+    private boolean handleBluetoothMediaToggleLatch(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_UP) {
+            Log.d(TAG, "Bluetooth PTT toggle: ignore UP (latched until second tap)");
+            return true;
+        }
+        if (event.getRepeatCount() != 0) {
+            return true;
+        }
+        long now = SystemClock.uptimeMillis();
+        if (now - mLastBluetoothToggleDownWallMs < 50) {
+            Log.d(TAG, "Bluetooth PTT toggle: ignore duplicate DOWN (two delivery paths)");
+            return true;
+        }
+        mLastBluetoothToggleDownWallMs = now;
+        mBluetoothPttDebounceSkippedFirstDown = false;
+        mLastPttDownHandledTimeMs = 0L;
+
+        mBluetoothPttMediaLatched = !mBluetoothPttMediaLatched;
+        if (mBluetoothPttMediaLatched) {
+            KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_DOWN, REMAPPED_PTT_KEYCODE, 0);
+            handlePttKeyEvent(ev, false);
+            if (!mBluetoothPttDebounceSkippedFirstDown) {
+                startBluetoothPttHoldRepeat();
+            }
+        } else {
+            stopBluetoothPttHoldRepeat();
+            KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_UP, REMAPPED_PTT_KEYCODE, 0);
+            handlePttKeyEvent(ev, false);
+        }
+        return true;
+    }
+
+    private void clearBluetoothMediaToggleLatchIfTransmitting() {
+        if (!mBluetoothPttMediaLatched) {
+            return;
+        }
+        mBluetoothPttMediaLatched = false;
+        stopBluetoothPttHoldRepeat();
+        mLastPttDownHandledTimeMs = 0L;
+        long now = SystemClock.uptimeMillis();
+        KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_UP, REMAPPED_PTT_KEYCODE, 0);
+        handlePttKeyEvent(ev, false);
     }
 
     @SuppressWarnings("deprecation")
@@ -591,9 +660,64 @@ public class PTTAccessibilityService extends AccessibilityService {
         mVendorHeadsetReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                BluetoothHeadsetProbeLog.logVendorIntent(context, intent, "VENDOR cat.85");
                 PTTAccessibilityService.dispatchVendorHeadsetIntent(context, intent);
             }
         };
+    }
+
+    private void ensureVendorProbeLooseReceiverCreated() {
+        if (mVendorProbeLooseReceiver != null) {
+            return;
+        }
+        mVendorProbeLooseReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                BluetoothHeadsetProbeLog.logVendorIntent(context, intent, "VENDOR action-only");
+            }
+        };
+    }
+
+    private void registerVendorProbeLooseReceiver() {
+        ensureVendorProbeLooseReceiverCreated();
+        unregisterVendorProbeLooseReceiver();
+        IntentFilter loose = new IntentFilter(BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT);
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                Method m = Context.class.getMethod(
+                        "registerReceiver",
+                        BroadcastReceiver.class,
+                        IntentFilter.class,
+                        String.class,
+                        Handler.class,
+                        int.class);
+                m.invoke(this, mVendorProbeLooseReceiver, loose, ANDROID_PERMISSION_BLUETOOTH, null,
+                        Integer.valueOf(RECEIVER_EXPORTED_FLAG));
+                mVendorProbeLooseRegistered = true;
+            } else if (Build.VERSION.SDK_INT <= 23) {
+                registerReceiver(mVendorProbeLooseReceiver, loose);
+                mVendorProbeLooseRegistered = true;
+            } else {
+                registerReceiver(mVendorProbeLooseReceiver, loose, ANDROID_PERMISSION_BLUETOOTH, null);
+                mVendorProbeLooseRegistered = true;
+            }
+            Log.d(TAG, "Bluetooth PTT: BtProbe VENDOR action-only registered (uncategorized vendor AT)");
+        } catch (Exception e) {
+            Log.w(TAG, "Bluetooth PTT: BtProbe loose VENDOR register failed", e);
+        }
+    }
+
+    private void unregisterVendorProbeLooseReceiver() {
+        if (!mVendorProbeLooseRegistered || mVendorProbeLooseReceiver == null) {
+            mVendorProbeLooseRegistered = false;
+            return;
+        }
+        try {
+            unregisterReceiver(mVendorProbeLooseReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // not registered
+        }
+        mVendorProbeLooseRegistered = false;
     }
 
     private void registerVendorHeadsetReceiver() {
@@ -601,6 +725,7 @@ public class PTTAccessibilityService extends AccessibilityService {
         IntentFilter filter = new IntentFilter(BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT);
         // Required: system intent includes category companyid.85; a filter with no categories only matches no-category intents.
         filter.addCategory(CATEGORY_HEADSET_COMPANY_85);
+        boolean registeredCategoryFilter = false;
         try {
             if (mVendorHeadsetRegistered) {
                 try {
@@ -621,14 +746,17 @@ public class PTTAccessibilityService extends AccessibilityService {
                 m.invoke(this, mVendorHeadsetReceiver, filter, ANDROID_PERMISSION_BLUETOOTH, null,
                         Integer.valueOf(RECEIVER_EXPORTED_FLAG));
                 mVendorHeadsetRegistered = true;
+                registeredCategoryFilter = true;
                 Log.d(TAG, "Bluetooth PTT: VENDOR_SPECIFIC registered (API 33+ category .85 + permission)");
             } else if (Build.VERSION.SDK_INT <= 23) {
                 registerReceiver(mVendorHeadsetReceiver, filter);
                 mVendorHeadsetRegistered = true;
+                registeredCategoryFilter = true;
                 Log.d(TAG, "Bluetooth PTT: VENDOR_SPECIFIC registered (API≤23 category .85, 2-arg)");
             } else {
                 registerReceiver(mVendorHeadsetReceiver, filter, ANDROID_PERMISSION_BLUETOOTH, null);
                 mVendorHeadsetRegistered = true;
+                registeredCategoryFilter = true;
                 Log.d(TAG, "Bluetooth PTT: VENDOR_SPECIFIC registered (category .85 + permission string)");
             }
         } catch (Exception e) {
@@ -637,14 +765,19 @@ public class PTTAccessibilityService extends AccessibilityService {
                 IntentFilter loose = new IntentFilter(BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT);
                 registerReceiver(mVendorHeadsetReceiver, loose);
                 mVendorHeadsetRegistered = true;
+                registeredCategoryFilter = false;
                 Log.w(TAG, "Bluetooth PTT: VENDOR_SPECIFIC registered (action-only fallback, no category)");
             } catch (Exception e2) {
                 Log.e(TAG, "Bluetooth PTT: VENDOR_SPECIFIC registration failed", e2);
             }
         }
+        if (registeredCategoryFilter) {
+            registerVendorProbeLooseReceiver();
+        }
     }
 
     private void unregisterVendorHeadsetReceiver() {
+        unregisterVendorProbeLooseReceiver();
         if (!mVendorHeadsetRegistered || mVendorHeadsetReceiver == null) {
             mVendorHeadsetRegistered = false;
             return;
@@ -659,6 +792,7 @@ public class PTTAccessibilityService extends AccessibilityService {
     }
 
     private void releaseBluetoothMediaSession() {
+        clearBluetoothMediaToggleLatchIfTransmitting();
         stopBluetoothPttHoldRepeat();
         abandonBluetoothMusicAudioFocus();
         unregisterVendorHeadsetReceiver();
@@ -683,8 +817,10 @@ public class PTTAccessibilityService extends AccessibilityService {
     private static final String LOG_MEDIA_BTN = "HyTalkPTT-MediaBtn";
 
     private boolean handleBluetoothMediaButtonIntent(Intent intent) {
+        BluetoothHeadsetProbeLog.logMediaButtonIntent(intent);
         KeyEvent event = MediaButtonKeyEventParser.fromIntent(intent);
         if (event != null) {
+            BluetoothHeadsetProbeLog.logKeyEvent("MediaSession-callback", event);
             Log.i(LOG_MEDIA_BTN, "MediaSession callback: " + KeyEvent.keyCodeToString(event.getKeyCode())
                     + " action=" + event.getAction());
         }
@@ -760,6 +896,16 @@ public class PTTAccessibilityService extends AccessibilityService {
         if (PttKeySetupActivity.isSetupScreenVisible() && isBluetoothHeadsetMediaKey(keyCode)) {
             PttKeySetupActivity.onMediaButtonKey(getApplicationContext(), event);
             return true;
+        }
+
+        if (PttPreferences.isPttBluetoothSourceEnabled(this) && isBluetoothHeadsetMediaKey(keyCode)) {
+            BluetoothHeadsetProbeLog.logKeyEvent("Accessibility-onKeyEvent", event);
+        }
+
+        if (PttPreferences.isBluetoothPttMediaToggleLatch(this)
+                && PttPreferences.isPttBluetoothSourceEnabled(this)
+                && isBluetoothHeadsetPttKeyForPtt(this, keyCode)) {
+            return handleBluetoothMediaToggleLatch(event);
         }
 
         if (!isConfiguredPttKey(keyCode)) {
@@ -871,6 +1017,7 @@ public class PTTAccessibilityService extends AccessibilityService {
     
     @Override
     public void onDestroy() {
+        clearBluetoothMediaToggleLatchIfTransmitting();
         stopBluetoothPttHoldRepeat();
         PttPreferences.prefs(this).unregisterOnSharedPreferenceChangeListener(mPttPrefsListener);
         releaseBluetoothMediaSession();

@@ -8,6 +8,7 @@
     <string name="ptt_save_bluetooth_reminder">Important: enable “Bluetooth headset / microphone PTT” above and tap Save. Until you Save, headset keys are not registered when you leave this screen (see log: Bluetooth PTT OFF).</string>
     <string name="ptt_bluetooth_hint">Huawei often sends headset PLAY/PAUSE to com.android.mediacenter (Huawei Music), not to other apps — system log: “Sending KeyEvent … to com.android.mediacenter”. Force-stop or disable Huawei Music / Media center, enable Bluetooth PTT + Save, then try again. Dedicated PTT on some mics never appears in system logs — use the phone side key. Diagnose: adb logcat | grep -i MediaSessionService</string>
     <string name="ptt_bt_include_media_play">AVRCP Play (MEDIA_PLAY) triggers PTT — uncheck if the headset power / hook button falsely keys PTT (same key code as many “play” buttons).</string>
+    <string name="ptt_bt_media_toggle_latch">Tap to toggle transmit (for radios/headsets that only send a short PLAY/PAUSE pulse — first tap = PTT on, second tap = off)</string>
     <string name="ptt_save_need_source">Enable at least one PTT source</string>
     <string name="ptt_saved">Saved</string>
     <string name="main_configure_programmable_keys">Configure Programmable Keys (for Motorola)</string>

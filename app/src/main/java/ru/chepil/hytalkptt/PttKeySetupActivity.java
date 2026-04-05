@@ -38,6 +38,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
     private CheckBox cbHardware;
     private CheckBox cbBluetooth;
     private CheckBox cbBtIncludeMediaPlay;
+    private CheckBox cbBtMediaToggleLatch;
     private TextView tvBluetoothHint;
     /** While visible: captures BT / AVRCP keys for the on-screen readout. */
     private MediaSession mSetupMediaSession;
@@ -81,6 +82,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
         cbHardware = (CheckBox) findViewById(R.id.cb_ptt_hardware);
         cbBluetooth = (CheckBox) findViewById(R.id.cb_ptt_bluetooth);
         cbBtIncludeMediaPlay = (CheckBox) findViewById(R.id.cb_bt_include_media_play);
+        cbBtMediaToggleLatch = (CheckBox) findViewById(R.id.cb_bt_media_toggle_latch);
         tvBluetoothHint = (TextView) findViewById(R.id.tv_bluetooth_hint);
         if (cbHardware != null) {
             cbHardware.setChecked(PttPreferences.isPttHardwareSourceEnabled(this));
@@ -90,6 +92,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
         if (cbBtIncludeMediaPlay != null) {
             cbBtIncludeMediaPlay.setChecked(PttPreferences.isBluetoothPttIncludeMediaPlay(this));
+        }
+        if (cbBtMediaToggleLatch != null) {
+            cbBtMediaToggleLatch.setChecked(PttPreferences.isBluetoothPttMediaToggleLatch(this));
         }
         updateBluetoothHintVisibility();
 
@@ -122,8 +127,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
                         return;
                     }
                     boolean includeMediaPlay = cbBtIncludeMediaPlay == null || cbBtIncludeMediaPlay.isChecked();
+                    boolean mediaToggleLatch = bluetooth && cbBtMediaToggleLatch != null && cbBtMediaToggleLatch.isChecked();
                     PttPreferences.commitPttConfiguration(
-                            PttKeySetupActivity.this, hardware, bluetooth, includeMediaPlay, lastKeyCode);
+                            PttKeySetupActivity.this, hardware, bluetooth, includeMediaPlay, mediaToggleLatch, lastKeyCode);
                     Toast.makeText(PttKeySetupActivity.this, R.string.ptt_saved, Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -138,6 +144,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
         if (cbBtIncludeMediaPlay != null) {
             cbBtIncludeMediaPlay.setVisibility(on ? View.VISIBLE : View.GONE);
+        }
+        if (cbBtMediaToggleLatch != null) {
+            cbBtMediaToggleLatch.setVisibility(on ? View.VISIBLE : View.GONE);
         }
     }
 

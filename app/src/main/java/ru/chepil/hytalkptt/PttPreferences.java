@@ -15,11 +15,16 @@ public final class PttPreferences {
     private static final String KEY_PTT_SOURCE_BLUETOOTH = "ptt_source_bluetooth";
     /** When false, {@link android.view.KeyEvent#KEYCODE_MEDIA_PLAY} is not treated as Bluetooth PTT (power/hook). */
     private static final String KEY_BT_INCLUDE_MEDIA_PLAY = "ptt_bt_include_media_play";
+    /**
+     * When true, each short AVRCP/media key press toggles TX on/off (for headsets that only send DOWN+UP in one burst).
+     */
+    private static final String KEY_BT_MEDIA_TOGGLE_LATCH = "ptt_bt_media_toggle_latch";
     /** Default PTT keycode for Motorola LEX F10. */
     public static final int DEFAULT_PTT_KEYCODE = 228;
     /** Preference key for {@link #isPttBluetoothSourceEnabled(Context)} — use with preference listeners. */
     public static final String PREF_KEY_PTT_SOURCE_BLUETOOTH = KEY_PTT_SOURCE_BLUETOOTH;
     public static final String PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY = KEY_BT_INCLUDE_MEDIA_PLAY;
+    public static final String PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH = KEY_BT_MEDIA_TOGGLE_LATCH;
 
     private PttPreferences() {}
 
@@ -83,12 +88,20 @@ public final class PttPreferences {
     }
 
     /**
+     * When true, Bluetooth media keys (PLAY/PAUSE/…) toggle transmit: first tap = PTT on (with hold refresh),
+     * second tap = PTT off. Use when the device only sends a short pulse, not a real hold.
+     */
+    public static boolean isBluetoothPttMediaToggleLatch(Context context) {
+        return prefs(context).getBoolean(KEY_BT_MEDIA_TOGGLE_LATCH, false);
+    }
+
+    /**
      * Saves sources and optional keycode using {@link android.content.SharedPreferences.Editor#commit()}.
      * Needed so values exist before {@link android.app.Activity#onPause()} runs ( {@code apply()} is async and
      * races with {@link PTTAccessibilityService#resumeBluetoothMediaForKeyLearning()}).
      */
     public static void commitPttConfiguration(Context context, boolean hardware, boolean bluetooth,
-            boolean bluetoothIncludeMediaPlay, int lastKeyCodeOrMinusOne) {
+            boolean bluetoothIncludeMediaPlay, boolean bluetoothMediaToggleLatch, int lastKeyCodeOrMinusOne) {
         SharedPreferences.Editor ed = prefs(context).edit();
         if (hardware && lastKeyCodeOrMinusOne >= 0) {
             ed.putInt(KEY_PTT_KEYCODE, lastKeyCodeOrMinusOne);
@@ -96,6 +109,7 @@ public final class PttPreferences {
         ed.putBoolean(KEY_PTT_SOURCE_HARDWARE, hardware);
         ed.putBoolean(KEY_PTT_SOURCE_BLUETOOTH, bluetooth);
         ed.putBoolean(KEY_BT_INCLUDE_MEDIA_PLAY, bluetoothIncludeMediaPlay);
+        ed.putBoolean(KEY_BT_MEDIA_TOGGLE_LATCH, bluetoothMediaToggleLatch);
         ed.commit();
     }
 

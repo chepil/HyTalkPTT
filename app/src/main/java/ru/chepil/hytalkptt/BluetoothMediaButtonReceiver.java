@@ -20,6 +20,7 @@ public class BluetoothMediaButtonReceiver extends BroadcastReceiver {
         if (context == null || intent == null || !Intent.ACTION_MEDIA_BUTTON.equals(intent.getAction())) {
             return;
         }
+        BluetoothHeadsetProbeLog.logMediaButtonIntent(intent);
         Log.i(LOG_TAG, "raw MEDIA_BUTTON delivered to app");
         KeyEvent ev = MediaButtonKeyEventParser.fromIntent(intent);
         if (ev == null) {

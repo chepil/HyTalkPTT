@@ -71,6 +71,17 @@
             android:textColor="#CCCCCC"
             android:textSize="14sp" />
 
+        <CheckBox
+            android:id="@+id/cb_bt_media_toggle_latch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/ptt_checkbox_button_tint"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:text="@string/ptt_bt_media_toggle_latch"
+            android:textColor="#CCCCCC"
+            android:textSize="14sp" />
+
         <TextView
             android:id="@+id/tv_key_code"
             android:layout_width="match_parent"

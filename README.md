@@ -58,8 +58,19 @@ This helps the device deliver PTT events when locked or in the background (where
 Support has been added for **external Bluetooth PTT microphones** that work like a dedicated radio-style PTT button over Bluetooth. Examples include **Inrico BT02** and **similar** models from Inrico or other vendors, provided the Android Bluetooth stack forwards their events to apps.
 
 - In **Configure PTT Key**, enable **Bluetooth headset / microphone PTT** and **Save settings** (until you save, Bluetooth capture is not active).
+- Some radios (e.g. **Retevis / Ailunce HD2** over Bluetooth) send **PLAY/PAUSE** as a **very short pulse** (DOWN+UP in a few milliseconds), so HyTalk only sees a “click”, not a hold. Enable **Tap to toggle transmit** in Configure PTT Key: **first tap** = start PTT (with repeated `PTT_DOWN` keepalive), **second tap** = stop. Leave it off for normal press-to-talk headsets that send a real key hold.
 - Depending on the mic, PTT may arrive as **AVRCP** (play/pause), **HFP hook**, or **vendor-specific HFP** frames (e.g. `+XEVENT` / `TALK` press and release). The app maps these to the same `PTT_DOWN` / `PTT_UP` broadcasts as the hardware key.
 - If nothing appears when you press PTT, the device may use a **proprietary protocol** that Android does not expose — in that case use the phone’s own programmable PTT key or another mic model.
+
+**Debug / proximity on HD2 (and similar):** the app logs Bluetooth probe lines with tag **`HyTalkPTT-BtProbe`** (vendor HFP `VENDOR_SPECIFIC`, `MEDIA_BUTTON` extras, and `KeyEvent` from MediaSession vs accessibility). Capture while touching the sensor:
+
+```bash
+adb logcat -v time 'HyTalkPTT-BtProbe:I' 'PTTAccessibilityService:D' '*:S'
+```
+
+(Quote `*:S` in zsh.) Compare finger-on vs finger-off lines; vendor AT commands may use a different company id than 85 — the **action-only** vendor receiver logs those without the category filter.
+
+If you **hear a short tone in the earpiece** when touching a **proximity sensor** but **no `HyTalkPTT-BtProbe` lines** appear, the headset is almost certainly handling the sensor **inside its own firmware** (local audio feedback only). Android apps then receive **no** separate key or vendor event for that gesture — HyTalkPTT cannot map it unless the manufacturer exposes a documented Bluetooth command stream.
 
 ## Building the Project
 
