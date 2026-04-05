@@ -29,7 +29,8 @@ final class BluetoothHeadsetProbeLog {
         int cmdType = intent.getIntExtra(BluetoothHeadset.EXTRA_VENDOR_SPECIFIC_HEADSET_EVENT_CMD_TYPE, Integer.MIN_VALUE);
         Object[] args = extractVendorArgs(intent);
         BluetoothDevice dev = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-        String deviceStr = dev != null ? (dev.getName() + " " + dev.getAddress()) : "null";
+        // Avoid BluetoothDevice.getName(): requires BLUETOOTH_CONNECT on API 31+ (lint MissingPermission).
+        String deviceStr = dev != null ? dev.getAddress() : "null";
         Log.i(TAG, "[" + source + "] categories=" + String.valueOf(intent.getCategories())
                 + " device=" + deviceStr
                 + " cmd=" + cmd
