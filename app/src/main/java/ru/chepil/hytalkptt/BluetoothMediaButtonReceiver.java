@@ -14,6 +14,8 @@ import android.view.KeyEvent;
 public class BluetoothMediaButtonReceiver extends BroadcastReceiver {
 
     private static final String LOG_TAG = "HyTalkPTT-MediaBtn";
+    /** Same timeline as {@code PTTAccessibilityService#TAG_PTT_TRACE}. */
+    private static final String TAG_TRACE = "HyTalkPTT-PTTTrace";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -31,6 +33,8 @@ public class BluetoothMediaButtonReceiver extends BroadcastReceiver {
         }
         Log.i(LOG_TAG, "receiver: " + KeyEvent.keyCodeToString(ev.getKeyCode())
                 + " action=" + ev.getAction() + " repeat=" + ev.getRepeatCount());
+        Log.i(TAG_TRACE, "MEDIA_BUTTON receiver -> deliver " + KeyEvent.keyCodeToString(ev.getKeyCode())
+                + " act=" + ev.getAction() + " rep=" + ev.getRepeatCount());
         MediaButtonKeyDispatcher.deliver(context.getApplicationContext(), ev);
     }
 }
