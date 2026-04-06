@@ -91,7 +91,7 @@
             android:gravity="center"
             android:minHeight="80dp"
             android:padding="16dp"
-            android:text="—"
+            android:text="@string/ptt_key_placeholder"
             android:textColor="#999999"
             android:textSize="16sp" />
 
@@ -103,7 +103,7 @@
             android:layout_marginBottom="16dp"
             android:background="#111111"
             android:padding="16dp"
-            android:text="Save settings"
+            android:text="@string/ptt_save_settings"
             android:textColor="#EEEEEE"
             android:textSize="16sp" />
 

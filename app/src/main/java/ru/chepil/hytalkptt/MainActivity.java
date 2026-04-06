@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "Launched from launcher - accessibility enabled, showing MainActivity");
                 TextView statusText = (TextView) findViewById(R.id.tv_status);
                 if (statusText != null) {
-                    statusText.setText("Waiting for PTT press...");
+                    statusText.setText(R.string.main_status_waiting_ptt);
                 }
                 return;
             }
@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
             moveTaskToBack(true);
         } catch (Exception e) {
             Log.e(TAG, "Error in onCreate", e);
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.error_with_message, userVisibleErrorDetail(e)), Toast.LENGTH_LONG).show();
             isPTTButtonPressed = false; // Reset flag on error
         }
     }
@@ -109,13 +109,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (PttPreferences.isPttBluetoothSourceEnabled(this)) {
+            PTTAccessibilityService.refreshBluetoothMediaRoutingFromUi(this);
+        }
         if (!mLauncherNoPttFlow || isPTTButtonPressed) {
             return;
         }
         if (PttAccessibilityHelper.isHyTalkPttServiceEnabled(this)) {
             TextView statusText = (TextView) findViewById(R.id.tv_status);
             if (statusText != null) {
-                statusText.setText("Waiting for PTT press...");
+                statusText.setText(R.string.main_status_waiting_ptt);
             }
             Log.d(TAG, "Launcher flow: accessibility is ON — status refreshed after resume");
         } else {
@@ -186,7 +189,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Opened Settings - user should navigate to Programmable Keys");
         } catch (Exception e) {
             Log.e(TAG, "Error opening Programmable Keys settings", e);
-            Toast.makeText(this, "Failed to open settings", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.toast_failed_open_settings, Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -200,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Opened Accessibility Settings");
         } catch (Exception e) {
             Log.e(TAG, "Error opening Accessibility settings", e);
-            Toast.makeText(this, "Failed to open Accessibility settings", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.toast_failed_open_accessibility_settings, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -211,7 +214,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Opened PTT Key setup");
         } catch (Exception e) {
             Log.e(TAG, "Error opening PTT key settings", e);
-            Toast.makeText(this, "Failed to open PTT key settings", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.toast_failed_open_ptt_key_settings, Toast.LENGTH_SHORT).show();
         }
     }
     
@@ -320,10 +323,10 @@ public class MainActivity extends AppCompatActivity {
                 moveTaskToBack(true);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to start HyTalk app", e);
-                Toast.makeText(this, "Failed to launch: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.toast_failed_launch_hytalk, userVisibleErrorDetail(e)), Toast.LENGTH_LONG).show();
                 TextView statusText = (TextView) findViewById(R.id.tv_status);
                 if (statusText != null) {
-                    statusText.setText("Failed to launch!\n" + e.getMessage());
+                    statusText.setText(getString(R.string.main_status_failed_launch_hytalk, userVisibleErrorDetail(e)));
                 }
                 isPTTButtonPressed = false; // Reset flag on error
                 hyTalkLaunched = false;
@@ -397,5 +400,13 @@ public class MainActivity extends AppCompatActivity {
         
         Log.d(TAG, "Found " + foundCount + " potential HyTalk apps");
         Log.d(TAG, "=== End search ===");
+    }
+
+    private String userVisibleErrorDetail(Throwable e) {
+        String m = e != null ? e.getMessage() : null;
+        if (m == null || m.trim().isEmpty()) {
+            return getString(R.string.error_unknown);
+        }
+        return m;
     }
 }

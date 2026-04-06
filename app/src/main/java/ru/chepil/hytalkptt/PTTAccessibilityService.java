@@ -79,9 +79,11 @@ public class PTTAccessibilityService extends AccessibilityService {
 
     /**
      * HyTalk treats an isolated PTT_DOWN as a short tap; resend PTT_DOWN while Bluetooth PTT is held
-     * until PTT_UP (HFP vendor TALK,0 or AVRCP/media key release).
+     * until PTT_UP (HFP vendor TALK,0 or AVRCP/media key release). Not too fast: each tick used to
+     * resolve the HyTalk package on the main thread (now cached) and floods HyTalk; ~400ms keeps
+     * keepalive-style refresh without hammering HyTalk.
      */
-    private static final long BLUETOOTH_PTT_DOWN_REPEAT_MS = 80L;
+    private static final long BLUETOOTH_PTT_DOWN_REPEAT_MS = 400L;
 
     private Handler mBluetoothPttHoldRepeatHandler;
     private final Runnable mBluetoothPttHoldRepeatRunnable = new Runnable() {
@@ -105,6 +107,15 @@ public class PTTAccessibilityService extends AccessibilityService {
      */
     private boolean mBluetoothPttMediaLatched;
     private long mLastBluetoothToggleDownWallMs;
+    /** {@link SystemClock#uptimeMillis} when toggle latched ON — ignore OFF if a late duplicate MEDIA_BUTTON arrives too soon. */
+    private long mBluetoothToggleOnUptimeMs;
+    /**
+     * Reject toggle-OFF if within this many ms of toggle-ON (late duplicate MEDIA_BUTTON ~200–350ms after first).
+     */
+    private static final long BLUETOOTH_TOGGLE_MIN_HOLD_BEFORE_OFF_MS = 310L;
+
+    /** Cached target for explicit {@link #sendPTTBroadcast}; avoid {@link #findHyTalkApp()} every keepalive tick. */
+    private String mCachedHyTalkBroadcastPackage;
 
     /**
      * Exclusive music-stream focus so the system routes headset play/pause to our {@link MediaSession}
@@ -318,6 +329,30 @@ public class PTTAccessibilityService extends AccessibilityService {
         if (s != null) {
             s.resumeBluetoothMediaForKeyLearningInternal();
         }
+    }
+
+    /**
+     * Re-attach media button receiver, {@link MediaSession}, and STREAM_MUSIC focus after another app
+     * (e.g. system Music) may have taken headset key routing. Call from {@link MainActivity#onResume}
+     * when Bluetooth PTT is enabled — one-shot per resume, not a periodic timer.
+     */
+    public static void refreshBluetoothMediaRoutingFromUi(Context context) {
+        if (context == null) {
+            return;
+        }
+        Context app = context.getApplicationContext();
+        if (!PttPreferences.isPttBluetoothSourceEnabled(app)) {
+            return;
+        }
+        if (PttKeySetupActivity.isSetupScreenVisible()) {
+            return;
+        }
+        PTTAccessibilityService s = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (s == null) {
+            return;
+        }
+        s.updateBluetoothMediaSession();
+        Log.d(TAG, "Bluetooth PTT: refreshed from UI (e.g. after Music / another media app)");
     }
 
     private void pauseBluetoothMediaForKeyLearningInternal() {
@@ -586,12 +621,22 @@ public class PTTAccessibilityService extends AccessibilityService {
 
         mBluetoothPttMediaLatched = !mBluetoothPttMediaLatched;
         if (mBluetoothPttMediaLatched) {
+            mBluetoothToggleOnUptimeMs = now;
             KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_DOWN, REMAPPED_PTT_KEYCODE, 0);
             handlePttKeyEvent(ev, false);
             if (!mBluetoothPttDebounceSkippedFirstDown) {
                 startBluetoothPttHoldRepeat();
             }
         } else {
+            if (mBluetoothToggleOnUptimeMs != 0L
+                    && now - mBluetoothToggleOnUptimeMs < BLUETOOTH_TOGGLE_MIN_HOLD_BEFORE_OFF_MS) {
+                mBluetoothPttMediaLatched = true;
+                Log.d(TAG, "Bluetooth PTT toggle: ignore OFF too soon after ON ("
+                        + (now - mBluetoothToggleOnUptimeMs) + "ms, min="
+                        + BLUETOOTH_TOGGLE_MIN_HOLD_BEFORE_OFF_MS + "ms)");
+                return true;
+            }
+            mBluetoothToggleOnUptimeMs = 0L;
             stopBluetoothPttHoldRepeat();
             KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_UP, REMAPPED_PTT_KEYCODE, 0);
             handlePttKeyEvent(ev, false);
@@ -604,6 +649,7 @@ public class PTTAccessibilityService extends AccessibilityService {
             return;
         }
         mBluetoothPttMediaLatched = false;
+        mBluetoothToggleOnUptimeMs = 0L;
         stopBluetoothPttHoldRepeat();
         mLastPttDownHandledTimeMs = 0L;
         long now = SystemClock.uptimeMillis();
@@ -819,14 +865,26 @@ public class PTTAccessibilityService extends AccessibilityService {
     private boolean handleBluetoothMediaButtonIntent(Intent intent) {
         BluetoothHeadsetProbeLog.logMediaButtonIntent(intent);
         KeyEvent event = MediaButtonKeyEventParser.fromIntent(intent);
-        if (event != null) {
+        if (event == null) {
+            // Must match {@link BluetoothMediaButtonReceiver}: when the stack delivers MEDIA_BUTTON to
+            // MediaSession without EXTRA_KEY_EVENT, bare intents were dropped here while the receiver
+            // synthesized HEADSETHOOK — HyTalk in foreground often routes keys only through Session.
+            event = BareMediaButtonPtt.nextSyntheticKeyEvent(getApplicationContext());
+            if (event != null) {
+                BluetoothHeadsetProbeLog.logKeyEvent("MediaSession-callback-bare", event);
+                Log.i(LOG_MEDIA_BTN, "MediaSession bare MEDIA_BUTTON -> synthetic (receiver-equivalent)");
+            }
+        } else {
             BluetoothHeadsetProbeLog.logKeyEvent("MediaSession-callback", event);
             Log.i(LOG_MEDIA_BTN, "MediaSession callback: " + KeyEvent.keyCodeToString(event.getKeyCode())
                     + " action=" + event.getAction());
         }
-        if (PttKeySetupActivity.isSetupScreenVisible() && event != null) {
-            PttKeySetupActivity.onMediaButtonKey(getApplicationContext(), event);
-            return true;
+        if (PttKeySetupActivity.isSetupScreenVisible()) {
+            if (event != null) {
+                PttKeySetupActivity.onMediaButtonKey(getApplicationContext(), event);
+                return true;
+            }
+            return false;
         }
         if (!PttPreferences.isPttBluetoothSourceEnabled(this)) {
             return false;
@@ -923,6 +981,9 @@ public class PTTAccessibilityService extends AccessibilityService {
         try {
             Intent launchIntent = findHyTalkApp();
             if (launchIntent != null) {
+                if (launchIntent.getComponent() != null) {
+                    mCachedHyTalkBroadcastPackage = launchIntent.getComponent().getPackageName();
+                }
                 // Add flags to bring app to foreground or launch if not running
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -1000,15 +1061,20 @@ public class PTTAccessibilityService extends AccessibilityService {
 
     /** Prefer explicit package so HyTalk receives the intent on OEM builds that restrict implicit broadcasts. */
     private String resolveHyTalkPackageNameForBroadcast() {
+        if (mCachedHyTalkBroadcastPackage != null) {
+            return mCachedHyTalkBroadcastPackage;
+        }
         Intent launch = findHyTalkApp();
         if (launch != null && launch.getComponent() != null) {
-            return launch.getComponent().getPackageName();
+            mCachedHyTalkBroadcastPackage = launch.getComponent().getPackageName();
+            return mCachedHyTalkBroadcastPackage;
         }
         PackageManager pm = getPackageManager();
         for (String packageName : POSSIBLE_PACKAGE_NAMES) {
             try {
                 pm.getApplicationInfo(packageName, 0);
-                return packageName;
+                mCachedHyTalkBroadcastPackage = packageName;
+                return mCachedHyTalkBroadcastPackage;
             } catch (PackageManager.NameNotFoundException ignored) {
             }
         }
@@ -1019,6 +1085,7 @@ public class PTTAccessibilityService extends AccessibilityService {
     public void onDestroy() {
         clearBluetoothMediaToggleLatchIfTransmitting();
         stopBluetoothPttHoldRepeat();
+        mCachedHyTalkBroadcastPackage = null;
         PttPreferences.prefs(this).unregisterOnSharedPreferenceChangeListener(mPttPrefsListener);
         releaseBluetoothMediaSession();
         sInstanceRef = null;

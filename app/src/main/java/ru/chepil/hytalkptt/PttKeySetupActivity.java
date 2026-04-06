@@ -326,7 +326,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
     public boolean dispatchKeyEvent(KeyEvent event) {
         if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN) {
             Log.d(TAG, "BACK button pressed (KEYCODE_BACK, code 4) – exiting");
-            Toast.makeText(this, "BACK pressed – exiting", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.ptt_back_exiting, Toast.LENGTH_SHORT).show();
             finish();
             return true;
         }
@@ -354,22 +354,24 @@ public class PttKeySetupActivity extends AppCompatActivity {
     }
 
     private String formatEvent(KeyEvent e) {
-        String action;
+        String actionLabel;
         switch (e.getAction()) {
             case KeyEvent.ACTION_DOWN:
-                action = "DOWN";
+                actionLabel = getString(R.string.ptt_key_action_down);
                 break;
             case KeyEvent.ACTION_UP:
-                action = "UP";
+                actionLabel = getString(R.string.ptt_key_action_up);
                 break;
             default:
-                action = String.valueOf(e.getAction());
+                actionLabel = String.valueOf(e.getAction());
         }
 
         String keyName = KeyEvent.keyCodeToString(e.getKeyCode());
 
-        return action +
-                "  keyCode=" + e.getKeyCode() + " (" + keyName + ")" +
-                "  scanCode=" + e.getScanCode();
+        return getString(R.string.ptt_key_event_format,
+                actionLabel,
+                e.getKeyCode(),
+                keyName,
+                e.getScanCode());
     }
 }

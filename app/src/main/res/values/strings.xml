@@ -1,7 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">HyTalkPTT</string>
-    <string name="accessibility_description">HyTalk PTT Automation Service</string>
-    <string name="ptt_setup_warn_accessibility_off">HyTalkPTT is OFF in Settings → Accessibility. Enable it for side/programmable PTT keys. If Bluetooth PTT still shows nothing below, your mic may use a non-standard protocol (e.g. SPP only) that Android does not expose as keys.</string>
+    <string name="accessibility_description">HyTalk PTT automation service</string>
+
+    <string name="main_btn_configure_accessibility">Configure accessibility</string>
+    <string name="main_btn_configure_ptt_key">Configure PTT key</string>
+    <string name="main_status_waiting_ptt">Waiting for PTT press…</string>
+
+    <string name="ptt_setup_warn_accessibility_off">HyTalkPTT is off in Settings → Accessibility. Turn it on for side/programmable PTT keys. If Bluetooth PTT still shows nothing below, your mic may use a non-standard protocol (e.g. SPP only) that Android does not expose as keys.</string>
     <string name="ptt_setup_instruction">Press the device side PTT key (shown here via keyboard events). Bluetooth: only works if the phone delivers headset or media keys to apps (HFP hook / AVRCP). Many dedicated PTT mics (e.g. some Inrico models) use a private protocol — then nothing appears in logcat (tag HyTalkPTT-MediaBtn) and you must use the device’s own PTT key only.</string>
     <string name="ptt_source_hardware">Device PTT key (programmable / side key)</string>
     <string name="ptt_source_bluetooth">Bluetooth headset / microphone PTT (HFP hook, AVRCP play/pause)</string>
@@ -11,6 +17,22 @@
     <string name="ptt_bt_media_toggle_latch">Tap to toggle transmit (for radios/headsets that only send a short PLAY/PAUSE pulse — first tap = PTT on, second tap = off)</string>
     <string name="ptt_save_need_source">Enable at least one PTT source</string>
     <string name="ptt_saved">Saved</string>
-    <string name="main_configure_programmable_keys">Configure Programmable Keys (for Motorola)</string>
-    <string name="main_setup_instructions">Scroll screen…\n\nOther accessibility services may interfere with global key capture. For reliable PTT, enable only HyTalkPTT under Settings → Accessibility (turn off any others you do not need).\n\nTo use HyTalkPTT, do this in order:\n\n1) Accessibility: tap Configure Accessibility — Settings → Accessibility → HyTalkPTT → enable the toggle\n2) Configure PTT Key: tap Configure PTT Key — press your PTT button, enable Bluetooth PTT if needed, then Save settings\n3) Configure Programmable Keys (for Motorola): Settings → Programmable Keys → Select PTT Key app → HyTalkPTT</string>
+    <string name="ptt_save_settings">Save settings</string>
+    <string name="ptt_key_placeholder">—</string>
+
+    <string name="ptt_key_action_down">DOWN</string>
+    <string name="ptt_key_action_up">UP</string>
+    <string name="ptt_key_event_format">%1$s  keyCode=%2$d (%3$s)  scanCode=%4$d</string>
+
+    <string name="main_configure_programmable_keys">Configure programmable keys (Motorola)</string>
+    <string name="main_setup_instructions">Scroll screen…\n\nOther accessibility services may interfere with global key capture. For reliable PTT, enable only HyTalkPTT under Settings → Accessibility (turn off any others you do not need).\n\nTo use HyTalkPTT, do this in order:\n\n1) Accessibility: tap Configure accessibility — Settings → Accessibility → HyTalkPTT → enable the toggle\n2) Configure PTT key: tap Configure PTT key — press your PTT button, enable Bluetooth PTT if needed, then Save settings\n3) Configure programmable keys (Motorola): Settings → Programmable keys → Select PTT Key app → HyTalkPTT</string>
+
+    <string name="error_with_message">Error: %1$s</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="toast_failed_open_settings">Could not open Settings</string>
+    <string name="toast_failed_open_accessibility_settings">Could not open Accessibility settings</string>
+    <string name="toast_failed_open_ptt_key_settings">Could not open PTT key settings</string>
+    <string name="toast_failed_launch_hytalk">Could not start HyTalk: %1$s</string>
+    <string name="main_status_failed_launch_hytalk">Could not start HyTalk!\n%1$s</string>
+    <string name="ptt_back_exiting">Back pressed — exiting</string>
 </resources>

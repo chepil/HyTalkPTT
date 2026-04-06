@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HyTalkPTT</string>
+    <string name="accessibility_description">Служба автоматизации PTT для HyTalk</string>
+
+    <string name="main_btn_configure_accessibility">Настроить спец. возможности</string>
+    <string name="main_btn_configure_ptt_key">Настроить клавишу PTT</string>
+    <string name="main_status_waiting_ptt">Ожидание нажатия PTT…</string>
+
+    <string name="ptt_setup_warn_accessibility_off">HyTalkPTT выключен в Настройки → Специальные возможности. Включите службу для боковых и программируемых клавиш PTT. Если по Bluetooth PTT по-прежнему ничего не отображается ниже, микрофон может использовать нестандартный протокол (например, только SPP), который Android не отдаёт приложениям как клавиши.</string>
+    <string name="ptt_setup_instruction">Нажмите боковую клавишу PTT на устройстве (здесь показываются события клавиатуры). Bluetooth: работает только если телефон передаёт приложениям клавиши гарнитуры или медиа (HFP hook / AVRCP). У многих выделенных PTT-микрофонов (например, часть Inrico) свой протокол — тогда в logcat ничего не будет (тег HyTalkPTT-MediaBtn), используйте только встроенную клавишу PTT телефона.</string>
+    <string name="ptt_source_hardware">Клавиша PTT на устройстве (программируемая / боковая)</string>
+    <string name="ptt_source_bluetooth">Bluetooth-гарнитура / микрофон PTT (HFP hook, AVRCP play/pause)</string>
+    <string name="ptt_save_bluetooth_reminder">Важно: включите «Bluetooth-гарнитура / микрофон PTT» выше и нажмите «Сохранить». Пока не сохраните, клавиши гарнитуры не регистрируются после выхода с этого экрана (в логе: Bluetooth PTT OFF).</string>
+    <string name="ptt_bluetooth_hint">На Huawei часто PLAY/PAUSE гарнитуры уходит в com.android.mediacenter (Huawei Music), а не в другие приложения — в системном логе: «Sending KeyEvent … to com.android.mediacenter». Остановите или отключите Huawei Music / медиацентр, включите Bluetooth PTT и Сохраните, затем повторите. У части микрофонов выделенный PTT не попадает в системные логи — используйте боковую клавишу телефона. Диагностика: adb logcat | grep -i MediaSessionService</string>
+    <string name="ptt_bt_include_media_play">AVRCP Play (MEDIA_PLAY) включает PTT — снимите флажок, если кнопка питания / сброса вызова ложно срабатывает как PTT (тот же код, что у многих «play»).</string>
+    <string name="ptt_bt_media_toggle_latch">Нажатие переключает передачу (для раций/гарнитур с коротким импульсом PLAY/PAUSE — первое нажатие = PTT вкл., второе = выкл.)</string>
+    <string name="ptt_save_need_source">Включите хотя бы один источник PTT</string>
+    <string name="ptt_saved">Сохранено</string>
+    <string name="ptt_save_settings">Сохранить настройки</string>
+    <string name="ptt_key_placeholder">—</string>
+
+    <string name="ptt_key_action_down">Нажатие</string>
+    <string name="ptt_key_action_up">Отпускание</string>
+    <string name="ptt_key_event_format">%1$s  кодКлавиши=%2$d (%3$s)  сканКод=%4$d</string>
+
+    <string name="main_configure_programmable_keys">Программируемые клавиши (Motorola)</string>
+    <string name="main_setup_instructions">Прокрутите экран…\n\nДругие службы спец. возможностей могут мешать перехвату клавиш. Для стабильного PTT включите только HyTalkPTT в Настройки → Специальные возможности (отключите ненужные остальные).\n\nПорядок настройки HyTalkPTT:\n\n1) Спец. возможности: «Настроить спец. возможности» → Настройки → Специальные возможности → HyTalkPTT → включите переключатель\n2) Клавиша PTT: «Настроить клавишу PTT» → нажмите PTT, при необходимости включите Bluetooth PTT, затем «Сохранить настройки»\n3) Программируемые клавиши (Motorola): Настройки → Программируемые клавиши → приложение для клавиши PTT → HyTalkPTT</string>
+
+    <string name="error_with_message">Ошибка: %1$s</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
+    <string name="toast_failed_open_settings">Не удалось открыть Настройки</string>
+    <string name="toast_failed_open_accessibility_settings">Не удалось открыть настройки спец. возможностей</string>
+    <string name="toast_failed_open_ptt_key_settings">Не удалось открыть настройки клавиши PTT</string>
+    <string name="toast_failed_launch_hytalk">Не удалось запустить HyTalk: %1$s</string>
+    <string name="main_status_failed_launch_hytalk">Не удалось запустить HyTalk!\n%1$s</string>
+    <string name="ptt_back_exiting">Нажата «Назад» — выход</string>
+</resources>

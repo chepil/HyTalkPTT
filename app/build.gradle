@@ -19,8 +19,8 @@ android {
         applicationId "ru.chepil.hytalkptt"
         minSdkVersion 22
         targetSdkVersion 36
-        versionCode 9
-        versionName "1.9"
+        versionCode 10
+        versionName "1.10"
     }
     
     compileOptions {

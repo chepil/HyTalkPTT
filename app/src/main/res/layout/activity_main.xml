@@ -38,7 +38,7 @@
             android:layout_marginBottom="16dp"
             android:background="#111111"
             android:padding="16dp"
-            android:text="Configure Accessibility"
+            android:text="@string/main_btn_configure_accessibility"
             android:textColor="#999999"
             android:textSize="16sp"
             android:visibility="visible" />
@@ -50,7 +50,7 @@
             android:layout_marginBottom="16dp"
             android:background="#111111"
             android:padding="16dp"
-            android:text="Configure PTT Key"
+            android:text="@string/main_btn_configure_ptt_key"
             android:textColor="#999999"
             android:textSize="16sp"
             android:visibility="visible" />
