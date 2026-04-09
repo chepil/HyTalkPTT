@@ -11,6 +11,14 @@
     <string name="ptt_setup_instruction">Press the device side PTT key (shown here via keyboard events). Bluetooth: only works if the phone delivers headset or media keys to apps (HFP hook / AVRCP). Many dedicated PTT mics (e.g. some Inrico models) use a private protocol — then nothing appears in logcat (tag HyTalkPTT-MediaBtn) and you must use the device’s own PTT key only.</string>
     <string name="ptt_source_hardware">Device PTT key (programmable / side key)</string>
     <string name="ptt_source_bluetooth">Bluetooth headset / microphone PTT (HFP hook, AVRCP play/pause)</string>
+    <string name="ptt_source_bluetooth_spp">Bluetooth SPP (RFCOMM serial) — e.g. Inrico B02PTT-FF01 (+PTT=P / +PTT=R)</string>
+    <string name="ptt_spp_hint">Pair the device in system Bluetooth settings first. SPP uses the standard serial UUID; we connect to a bonded Inrico B02PTT* device if present, otherwise the first bonded device. On Android 12+ grant the Bluetooth connect permission. Unknown bytes are shown in a toast so you can map new headsets.</string>
+    <string name="ptt_spp_unknown_message">SPP message: bytes %1$s\nUTF-8: %2$s</string>
+    <string name="ptt_spp_need_connect_permission">Allow Bluetooth connect for SPP (Android 12+)</string>
+    <string name="ptt_learn_spp_press">Bluetooth PTT (SPP): press (+PTT=P)</string>
+    <string name="ptt_learn_spp_release">Bluetooth PTT (SPP): release (+PTT=R)</string>
+    <string name="ptt_learn_vendor_press">Bluetooth PTT (HFP vendor): press</string>
+    <string name="ptt_learn_vendor_release">Bluetooth PTT (HFP vendor): release</string>
     <string name="ptt_save_bluetooth_reminder">Important: enable “Bluetooth headset / microphone PTT” above and tap Save. Until you Save, headset keys are not registered when you leave this screen (see log: Bluetooth PTT OFF).</string>
     <string name="ptt_bluetooth_hint">Huawei often sends headset PLAY/PAUSE to com.android.mediacenter (Huawei Music), not to other apps — system log: “Sending KeyEvent … to com.android.mediacenter”. Force-stop or disable Huawei Music / Media center, enable Bluetooth PTT + Save, then try again. Dedicated PTT on some mics never appears in system logs — use the phone side key. Diagnose: adb logcat | grep -i MediaSessionService</string>
     <string name="ptt_bt_include_media_play">AVRCP Play (MEDIA_PLAY) triggers PTT — uncheck if the headset power / hook button falsely keys PTT (same key code as many “play” buttons).</string>

@@ -13,6 +13,7 @@ public final class PttPreferences {
     private static final String KEY_PTT_KEYCODE = "ptt_keycode";
     private static final String KEY_PTT_SOURCE_HARDWARE = "ptt_source_hardware";
     private static final String KEY_PTT_SOURCE_BLUETOOTH = "ptt_source_bluetooth";
+    private static final String KEY_PTT_SOURCE_BLUETOOTH_SPP = "ptt_source_bluetooth_spp";
     /** When false, {@link android.view.KeyEvent#KEYCODE_MEDIA_PLAY} is not treated as Bluetooth PTT (power/hook). */
     private static final String KEY_BT_INCLUDE_MEDIA_PLAY = "ptt_bt_include_media_play";
     /**
@@ -25,6 +26,7 @@ public final class PttPreferences {
     public static final String PREF_KEY_PTT_SOURCE_BLUETOOTH = KEY_PTT_SOURCE_BLUETOOTH;
     public static final String PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY = KEY_BT_INCLUDE_MEDIA_PLAY;
     public static final String PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH = KEY_BT_MEDIA_TOGGLE_LATCH;
+    public static final String PREF_KEY_PTT_BLUETOOTH_SPP = KEY_PTT_SOURCE_BLUETOOTH_SPP;
 
     private PttPreferences() {}
 
@@ -75,6 +77,18 @@ public final class PttPreferences {
     }
 
     /**
+     * When true, classic Bluetooth RFCOMM SPP is used for PTT (e.g. Inrico B02PTT-FF01 {@code +PTT=P}/{@code +PTT=R}).
+     * Default false.
+     */
+    public static boolean isPttBluetoothSppEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_PTT_SOURCE_BLUETOOTH_SPP, false);
+    }
+
+    public static void setPttBluetoothSppEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_PTT_SOURCE_BLUETOOTH_SPP, enabled).apply();
+    }
+
+    /**
      * When false, Bluetooth PTT ignores {@link android.view.KeyEvent#KEYCODE_MEDIA_PLAY} only
      * (many headsets use the same code for power / hook and dedicated PTT may use another path).
      * Default true (legacy behavior).
@@ -101,6 +115,7 @@ public final class PttPreferences {
      * races with {@link PTTAccessibilityService#resumeBluetoothMediaForKeyLearning()}).
      */
     public static void commitPttConfiguration(Context context, boolean hardware, boolean bluetooth,
+            boolean bluetoothSpp,
             boolean bluetoothIncludeMediaPlay, boolean bluetoothMediaToggleLatch, int lastKeyCodeOrMinusOne) {
         SharedPreferences.Editor ed = prefs(context).edit();
         if (hardware && lastKeyCodeOrMinusOne >= 0) {
@@ -108,6 +123,7 @@ public final class PttPreferences {
         }
         ed.putBoolean(KEY_PTT_SOURCE_HARDWARE, hardware);
         ed.putBoolean(KEY_PTT_SOURCE_BLUETOOTH, bluetooth);
+        ed.putBoolean(KEY_PTT_SOURCE_BLUETOOTH_SPP, bluetoothSpp);
         ed.putBoolean(KEY_BT_INCLUDE_MEDIA_PLAY, bluetoothIncludeMediaPlay);
         ed.putBoolean(KEY_BT_MEDIA_TOGGLE_LATCH, bluetoothMediaToggleLatch);
         ed.commit();

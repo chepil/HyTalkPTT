@@ -38,6 +38,26 @@
             android:text="@string/ptt_source_bluetooth"
             android:textColor="#CCCCCC" />
 
+        <CheckBox
+            android:id="@+id/cb_ptt_bluetooth_spp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:buttonTint="@color/ptt_checkbox_button_tint"
+            android:text="@string/ptt_source_bluetooth_spp"
+            android:textColor="#CCCCCC" />
+
+        <TextView
+            android:id="@+id/tv_spp_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="4dp"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:text="@string/ptt_spp_hint"
+            android:textColor="#777777"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/tv_save_bluetooth_reminder"
             android:layout_width="match_parent"

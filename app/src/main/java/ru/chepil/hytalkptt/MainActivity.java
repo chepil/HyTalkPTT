@@ -109,7 +109,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (PttPreferences.isPttBluetoothSourceEnabled(this)) {
+        if (PttPreferences.isPttBluetoothSourceEnabled(this)
+                || PttPreferences.isPttBluetoothSppEnabled(this)) {
             PTTAccessibilityService.refreshBluetoothMediaRoutingFromUi(this);
         }
         if (!mLauncherNoPttFlow || isPTTButtonPressed) {

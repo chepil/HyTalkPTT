@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
@@ -20,16 +22,23 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 
 /**
  * Activity for detecting and displaying the PTT hardware key code.
  * Stores keyCode on ACTION_DOWN; "Save settings" saves it to app sandbox.
  * Bluetooth / headset keys are delivered via {@link MediaSession} and {@link Intent#ACTION_MEDIA_BUTTON},
  * not {@link #dispatchKeyEvent}, so we register those while this screen is visible.
+ * SPP (Inrico-style) and HFP vendor PTT are still received in the background and appended here as text lines
+ * (HyTalk broadcasts are not sent while this screen is visible).
  */
 public class PttKeySetupActivity extends AppCompatActivity {
 
     private static final String TAG = "PttKeySetupActivity";
+
+    private static final int REQ_BT_CONNECT = 5101;
+    private static final String PERM_BT_CONNECT = "android.permission.BLUETOOTH_CONNECT";
+    private static final int ANDROID_12_API = 31;
 
     private static WeakReference<PttKeySetupActivity> sInstanceRef;
 
@@ -39,7 +48,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
     private CheckBox cbBluetooth;
     private CheckBox cbBtIncludeMediaPlay;
     private CheckBox cbBtMediaToggleLatch;
+    private CheckBox cbBluetoothSpp;
     private TextView tvBluetoothHint;
+    private TextView tvSppHint;
     /** While visible: captures BT / AVRCP keys for the on-screen readout. */
     private MediaSession mSetupMediaSession;
     private ComponentName mSetupMediaReceiverComponent;
@@ -73,6 +84,60 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
     }
 
+    /** SPP Inrico {@code +PTT=P} / {@code +PTT=R} while this activity is resumed. */
+    static void onSppPttForUi(final boolean pressed) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        final int res = pressed ? R.string.ptt_learn_spp_press : R.string.ptt_learn_spp_release;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                a.appendLearnLine(a.getString(res));
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    /** HFP vendor-specific PTT (category 85) while this activity is resumed. */
+    static void onBluetoothVendorPttForUi(final boolean pressed) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        final int res = pressed ? R.string.ptt_learn_vendor_press : R.string.ptt_learn_vendor_release;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                a.appendLearnLine(a.getString(res));
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    private void appendLearnLine(String line) {
+        if (tvKeyCode == null || line == null) {
+            return;
+        }
+        CharSequence cur = tvKeyCode.getText();
+        String s = cur != null ? cur.toString().trim() : "";
+        String placeholder = getString(R.string.ptt_key_placeholder);
+        if (s.isEmpty() || s.equals(placeholder)) {
+            tvKeyCode.setText(line);
+        } else {
+            tvKeyCode.setText(s + "\n\n" + line);
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -83,7 +148,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         cbBluetooth = (CheckBox) findViewById(R.id.cb_ptt_bluetooth);
         cbBtIncludeMediaPlay = (CheckBox) findViewById(R.id.cb_bt_include_media_play);
         cbBtMediaToggleLatch = (CheckBox) findViewById(R.id.cb_bt_media_toggle_latch);
+        cbBluetoothSpp = (CheckBox) findViewById(R.id.cb_ptt_bluetooth_spp);
         tvBluetoothHint = (TextView) findViewById(R.id.tv_bluetooth_hint);
+        tvSppHint = (TextView) findViewById(R.id.tv_spp_hint);
         if (cbHardware != null) {
             cbHardware.setChecked(PttPreferences.isPttHardwareSourceEnabled(this));
         }
@@ -96,6 +163,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         if (cbBtMediaToggleLatch != null) {
             cbBtMediaToggleLatch.setChecked(PttPreferences.isBluetoothPttMediaToggleLatch(this));
         }
+        if (cbBluetoothSpp != null) {
+            cbBluetoothSpp.setChecked(PttPreferences.isPttBluetoothSppEnabled(this));
+        }
         updateBluetoothHintVisibility();
 
         CompoundButton.OnCheckedChangeListener sourceListener = new CompoundButton.OnCheckedChangeListener() {
@@ -106,6 +176,17 @@ public class PttKeySetupActivity extends AppCompatActivity {
         };
         if (cbBluetooth != null) {
             cbBluetooth.setOnCheckedChangeListener(sourceListener);
+        }
+        if (cbBluetoothSpp != null) {
+            cbBluetoothSpp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    updateBluetoothHintVisibility();
+                    if (isChecked) {
+                        requestSppConnectPermissionIfNeeded();
+                    }
+                }
+            });
         }
 
         tvKeyCode = (TextView) findViewById(R.id.tv_key_code);
@@ -122,14 +203,16 @@ public class PttKeySetupActivity extends AppCompatActivity {
                 public void onClick(View v) {
                     boolean hardware = cbHardware != null && cbHardware.isChecked();
                     boolean bluetooth = cbBluetooth != null && cbBluetooth.isChecked();
-                    if (!hardware && !bluetooth) {
+                    boolean bluetoothSpp = cbBluetoothSpp != null && cbBluetoothSpp.isChecked();
+                    if (!hardware && !bluetooth && !bluetoothSpp) {
                         Toast.makeText(PttKeySetupActivity.this, R.string.ptt_save_need_source, Toast.LENGTH_SHORT).show();
                         return;
                     }
                     boolean includeMediaPlay = cbBtIncludeMediaPlay == null || cbBtIncludeMediaPlay.isChecked();
                     boolean mediaToggleLatch = bluetooth && cbBtMediaToggleLatch != null && cbBtMediaToggleLatch.isChecked();
                     PttPreferences.commitPttConfiguration(
-                            PttKeySetupActivity.this, hardware, bluetooth, includeMediaPlay, mediaToggleLatch, lastKeyCode);
+                            PttKeySetupActivity.this, hardware, bluetooth, bluetoothSpp, includeMediaPlay, mediaToggleLatch, lastKeyCode);
+                    BluetoothPttCoordinator.syncRouting(PttKeySetupActivity.this);
                     Toast.makeText(PttKeySetupActivity.this, R.string.ptt_saved, Toast.LENGTH_SHORT).show();
                     finish();
                 }
@@ -147,6 +230,40 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
         if (cbBtMediaToggleLatch != null) {
             cbBtMediaToggleLatch.setVisibility(on ? View.VISIBLE : View.GONE);
+        }
+        boolean sppOn = cbBluetoothSpp != null && cbBluetoothSpp.isChecked();
+        if (tvSppHint != null) {
+            tvSppHint.setVisibility(sppOn ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void requestSppConnectPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < ANDROID_12_API) {
+            return;
+        }
+        if (getPackageManager().checkPermission(PERM_BT_CONNECT, getPackageName())
+                == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT < 23) {
+            return;
+        }
+        try {
+            Method m = android.app.Activity.class.getMethod("requestPermissions", String[].class, int.class);
+            m.invoke(this, new Object[] { new String[] { PERM_BT_CONNECT }, Integer.valueOf(REQ_BT_CONNECT) });
+        } catch (Exception e) {
+            Log.w(TAG, "requestPermissions(BLUETOOTH_CONNECT) failed", e);
+        }
+    }
+
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode != REQ_BT_CONNECT) {
+            return;
+        }
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            BluetoothPttCoordinator.syncRouting(this);
+        } else {
+            Toast.makeText(this, R.string.ptt_spp_need_connect_permission, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -170,6 +287,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         sInstanceRef = new WeakReference<PttKeySetupActivity>(this);
         refreshSetupInstructionBanner();
         PTTAccessibilityService.pauseBluetoothMediaForKeyLearning();
+        if (cbBluetoothSpp != null && cbBluetoothSpp.isChecked()) {
+            requestSppConnectPermissionIfNeeded();
+        }
         startBluetoothKeyCapture();
         if (tvKeyCode != null) {
             tvKeyCode.requestFocus();

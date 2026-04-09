@@ -9,6 +9,6 @@ final class MediaButtonKeyDispatcher {
     private MediaButtonKeyDispatcher() {}
 
     static void deliver(Context appContext, KeyEvent ev) {
-        PTTAccessibilityService.dispatchBluetoothMediaKey(appContext, ev);
+        BluetoothPttRoutingManager.dispatchBluetoothMediaKey(appContext, ev);
     }
 }

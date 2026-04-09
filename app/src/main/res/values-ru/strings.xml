@@ -11,6 +11,14 @@
     <string name="ptt_setup_instruction">Нажмите боковую клавишу PTT на устройстве (здесь показываются события клавиатуры). Bluetooth: работает только если телефон передаёт приложениям клавиши гарнитуры или медиа (HFP hook / AVRCP). У многих выделенных PTT-микрофонов (например, часть Inrico) свой протокол — тогда в logcat ничего не будет (тег HyTalkPTT-MediaBtn), используйте только встроенную клавишу PTT телефона.</string>
     <string name="ptt_source_hardware">Клавиша PTT на устройстве (программируемая / боковая)</string>
     <string name="ptt_source_bluetooth">Bluetooth-гарнитура / микрофон PTT (HFP hook, AVRCP play/pause)</string>
+    <string name="ptt_source_bluetooth_spp">Bluetooth SPP (RFCOMM) — напр. Inrico B02PTT-FF01 (+PTT=P / +PTT=R)</string>
+    <string name="ptt_spp_hint">Сначала сопрягите устройство в настройках Bluetooth. SPP использует стандартный UUID последовательного порта; подключаемся к спаренному Inrico B02PTT*, иначе к первому спаренному устройству. На Android 12+ нужно разрешение «Подключение Bluetooth». Неизвестные байты показываются во всплывающем сообщении для сопоставления новых гарнитур.</string>
+    <string name="ptt_spp_unknown_message">SPP сообщение: байты %1$s\nUTF-8: %2$s</string>
+    <string name="ptt_spp_need_connect_permission">Для SPP на Android 12+ разрешите подключение Bluetooth</string>
+    <string name="ptt_learn_spp_press">Bluetooth PTT (SPP): нажатие (+PTT=P)</string>
+    <string name="ptt_learn_spp_release">Bluetooth PTT (SPP): отпускание (+PTT=R)</string>
+    <string name="ptt_learn_vendor_press">Bluetooth PTT (HFP vendor): нажатие</string>
+    <string name="ptt_learn_vendor_release">Bluetooth PTT (HFP vendor): отпускание</string>
     <string name="ptt_save_bluetooth_reminder">Важно: включите «Bluetooth-гарнитура / микрофон PTT» выше и нажмите «Сохранить». Пока не сохраните, клавиши гарнитуры не регистрируются после выхода с этого экрана (в логе: Bluetooth PTT OFF).</string>
     <string name="ptt_bluetooth_hint">На Huawei часто PLAY/PAUSE гарнитуры уходит в com.android.mediacenter (Huawei Music), а не в другие приложения — в системном логе: «Sending KeyEvent … to com.android.mediacenter». Остановите или отключите Huawei Music / медиацентр, включите Bluetooth PTT и Сохраните, затем повторите. У части микрофонов выделенный PTT не попадает в системные логи — используйте боковую клавишу телефона. Диагностика: adb logcat | grep -i MediaSessionService</string>
     <string name="ptt_bt_include_media_play">AVRCP Play (MEDIA_PLAY) включает PTT — снимите флажок, если кнопка питания / сброса вызова ложно срабатывает как PTT (тот же код, что у многих «play»).</string>
