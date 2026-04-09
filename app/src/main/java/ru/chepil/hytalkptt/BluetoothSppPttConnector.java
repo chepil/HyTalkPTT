@@ -111,7 +111,7 @@ final class BluetoothSppPttConnector {
                 sleepQuiet(2000);
                 continue;
             }
-            BluetoothDevice device = InricoB02BluetoothDevices.findBondedInricoB02PttOrNull(adapter);
+            BluetoothDevice device = InricoB02BluetoothDevices.findBondedInricoB02PttOrNull(mApp, adapter);
             if (device == null) {
                 Set<BluetoothDevice> bonded = adapter.getBondedDevices();
                 if (bonded != null && !bonded.isEmpty()) {
@@ -125,7 +125,7 @@ final class BluetoothSppPttConnector {
             }
             BluetoothSocket socket = null;
             try {
-                Log.i(TAG, "SPP connect → " + safeName(device) + " " + device.getAddress());
+                Log.i(TAG, "SPP connect → " + deviceLabelForLog(device));
                 socket = device.createRfcommSocketToServiceRecord(RFCOMM_SPP_UUID);
                 mSocket = socket;
                 socket.connect();
@@ -189,9 +189,27 @@ final class BluetoothSppPttConnector {
         }
     }
 
-    private static String safeName(BluetoothDevice d) {
-        String n = d.getName();
-        return n != null ? n : "<no name>";
+    /**
+     * {@link BluetoothDevice#getName()} and {@link BluetoothDevice#getAddress()} require
+     * {@code BLUETOOTH_CONNECT} on API 31+; lint requires an explicit permission check.
+     */
+    private String deviceLabelForLog(BluetoothDevice d) {
+        if (d == null) {
+            return "null";
+        }
+        if (Build.VERSION.SDK_INT >= API_31) {
+            if (mApp.getPackageManager().checkPermission(PERM_BT_CONNECT, mApp.getPackageName())
+                    != PackageManager.PERMISSION_GRANTED) {
+                return "<no BT_CONNECT permission>";
+            }
+        }
+        try {
+            String n = d.getName();
+            String a = d.getAddress();
+            return (n != null ? n : "<no name>") + " " + a;
+        } catch (SecurityException ignored) {
+            return "<device>";
+        }
     }
 
     private void showUnknownSppToast(final byte[] data) {
