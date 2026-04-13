@@ -209,7 +209,7 @@ jobs:
         echo "Release tag: ${TAG}"
 
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ steps.release_tag.outputs.tag }}
         name: Release ${{ steps.release_tag.outputs.tag }}
