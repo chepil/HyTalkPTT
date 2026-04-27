@@ -106,13 +106,19 @@ final class BluetoothPttRoutingManager implements PttHyTalkActions.BluetoothDown
                     if (PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH.equals(key)
                             || PttPreferences.PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY.equals(key)
                             || PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH.equals(key)
-                            || PttPreferences.PREF_KEY_PTT_BLUETOOTH_SPP.equals(key)) {
+                            || PttPreferences.PREF_KEY_PTT_BLUETOOTH_SPP.equals(key)
+                            || PttPreferences.PREF_KEY_PTT_BLE_BUTTON.equals(key)
+                            || PttPreferences.PREF_KEY_BLE_PTT_DEVICE_ADDRESS.equals(key)) {
                         if (PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH.equals(key)
                                 && !sharedPreferences.getBoolean(PttPreferences.PREF_KEY_PTT_SOURCE_BLUETOOTH, false)) {
                             clearBluetoothMediaToggleLatchIfTransmitting();
                         }
                         if (PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH.equals(key)
                                 && !sharedPreferences.getBoolean(PttPreferences.PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH, false)) {
+                            clearBluetoothMediaToggleLatchIfTransmitting();
+                        }
+                        if (PttPreferences.PREF_KEY_PTT_BLE_BUTTON.equals(key)
+                                && !sharedPreferences.getBoolean(PttPreferences.PREF_KEY_PTT_BLE_BUTTON, false)) {
                             clearBluetoothMediaToggleLatchIfTransmitting();
                         }
                         refresh();
@@ -180,6 +186,30 @@ final class BluetoothPttRoutingManager implements PttHyTalkActions.BluetoothDown
         mgr.handleBluetoothMediaPttKeyEvent(event);
     }
 
+    /**
+     * BLE PTT-Z01 (FFE1 notify): pressed/released or toggle when {@link PttPreferences#isBluetoothPttMediaToggleLatch}
+     * is enabled.
+     */
+    static void dispatchBlePttButton(Context app, boolean pressed) {
+        if (app == null) {
+            return;
+        }
+        Context ctx = app.getApplicationContext();
+        if (!PttPreferences.isPttBleButtonEnabled(ctx)) {
+            return;
+        }
+        if (PttKeySetupActivity.isSetupScreenVisible()) {
+            PttKeySetupActivity.onBlePttForUi(pressed);
+            return;
+        }
+        BluetoothPttRoutingManager mgr = sInstance;
+        if (mgr == null || mgr.mHost == null) {
+            Log.w(TAG, "BLE PTT: routing host not running (accessibility or background Bluetooth service)");
+            return;
+        }
+        mgr.deliverBlePttButton(pressed);
+    }
+
     static void dispatchVendorHeadsetIntent(Context context, Intent intent) {
         if (intent == null
                 || !BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT.equals(intent.getAction())) {
@@ -228,7 +258,8 @@ final class BluetoothPttRoutingManager implements PttHyTalkActions.BluetoothDown
             return;
         }
         Context app = context.getApplicationContext();
-        if (!PttPreferences.isPttBluetoothSourceEnabled(app) && !PttPreferences.isPttBluetoothSppEnabled(app)) {
+        if (!PttPreferences.isPttBluetoothSourceEnabled(app) && !PttPreferences.isPttBluetoothSppEnabled(app)
+                && !PttPreferences.isPttBleButtonEnabled(app)) {
             return;
         }
         if (PttKeySetupActivity.isSetupScreenVisible()) {
@@ -530,6 +561,50 @@ final class BluetoothPttRoutingManager implements PttHyTalkActions.BluetoothDown
         Log.i(TAG_PTT_TRACE, line + " |uptimeMs=" + SystemClock.uptimeMillis());
     }
 
+    private void deliverBlePttButton(boolean pressed) {
+        if (PttPreferences.isBluetoothPttMediaToggleLatch(mApp)) {
+            if (pressed) {
+                applyBluetoothMediaToggleLatchTapFromBle();
+            }
+            return;
+        }
+        deliverVendorHeadsetPtt(pressed);
+    }
+
+    /** Same latch semantics as headset media toggle, driven by BLE notify edges. */
+    private void applyBluetoothMediaToggleLatchTapFromBle() {
+        long now = SystemClock.uptimeMillis();
+        if (now - mLastBluetoothToggleDownWallMs < 50) {
+            pttTrace("BLE-toggle ignore dup (<50ms)");
+            Log.d(TAG, "BLE PTT toggle: ignore duplicate tap");
+            return;
+        }
+        mLastBluetoothToggleDownWallMs = now;
+        mBluetoothPttDebounceSkippedFirstDown = false;
+        mBluetoothPttMediaLatched = !mBluetoothPttMediaLatched;
+        if (mBluetoothPttMediaLatched) {
+            pttTrace("BLE-toggle -> TX ON (synthetic DOWN)");
+            mBluetoothToggleOnUptimeMs = now;
+            KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_DOWN, REMAPPED_PTT_KEYCODE, 0);
+            PttHyTalkActions.handlePttKeyEvent(mApp, ev, false, null);
+            scheduleBluetoothToggleRoutingReclaimLoop();
+        } else {
+            if (mBluetoothToggleOnUptimeMs != 0L
+                    && now - mBluetoothToggleOnUptimeMs < BLUETOOTH_TOGGLE_MIN_HOLD_BEFORE_OFF_MS) {
+                mBluetoothPttMediaLatched = true;
+                pttTrace("BLE-toggle ignore OFF too soon (" + (now - mBluetoothToggleOnUptimeMs) + "ms)");
+                Log.d(TAG, "BLE PTT toggle: ignore OFF too soon after ON");
+                return;
+            }
+            mBluetoothToggleOnUptimeMs = 0L;
+            stopBluetoothPttHoldRepeat();
+            cancelBluetoothToggleRoutingReclaim();
+            pttTrace("BLE-toggle -> TX OFF (synthetic UP)");
+            KeyEvent ev = new KeyEvent(now, now, KeyEvent.ACTION_UP, REMAPPED_PTT_KEYCODE, 0);
+            PttHyTalkActions.handlePttKeyEvent(mApp, ev, false, null);
+        }
+    }
+
     private void deliverVendorHeadsetPtt(boolean isDown) {
         if (isDown) {
             KeyEvent ev = new KeyEvent(
@@ -613,6 +688,13 @@ final class BluetoothPttRoutingManager implements PttHyTalkActions.BluetoothDown
             PttHyTalkActions.handlePttKeyEvent(mApp, ev, false, null);
         }
         return true;
+    }
+
+    static void clearToggleLatchIfNeeded() {
+        BluetoothPttRoutingManager mgr = sInstance;
+        if (mgr != null) {
+            mgr.clearBluetoothMediaToggleLatchIfTransmitting();
+        }
     }
 
     private void clearBluetoothMediaToggleLatchIfTransmitting() {

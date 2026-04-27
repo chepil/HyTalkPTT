@@ -58,6 +58,7 @@ public class PTTAccessibilityService extends AccessibilityService {
 
         BluetoothPttCoordinator.syncRouting(getApplicationContext());
         BluetoothPttRoutingManager.attachHost(this);
+        BlePttZ01Controller.attachHost(this);
     }
 
     private void initInputManager() {
@@ -198,6 +199,7 @@ public class PTTAccessibilityService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        BlePttZ01Controller.detachHost(this);
         BluetoothPttRoutingManager.detachHost(this);
         PttHyTalkActions.clearCachedBroadcastPackage();
         BluetoothPttCoordinator.syncRouting(getApplicationContext());

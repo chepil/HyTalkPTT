@@ -1,6 +1,6 @@
 # HyTalkPTT
 
-HyTalkPTT is an Android application that enables a configurable physical PTT (Push-To-Talk) button to activate the HyTalk application. It works with Motorola LEX F10, UROVO DT30, Ulefone, and other devices whose PTT keycode you configure in the app. **External Bluetooth PTT microphones** are supported as well — for example **Inrico BT02** and similar headsets that deliver PTT over Bluetooth (HFP vendor / AVRCP / media keys, depending on the device).
+HyTalkPTT is an Android application that enables a configurable physical PTT (Push-To-Talk) button to activate the HyTalk application. It works with Motorola LEX F10, UROVO DT30, Ulefone, and other devices whose PTT keycode you configure in the app. **External Bluetooth PTT microphones** are supported as well — for example **Inrico BT02** and similar headsets that deliver PTT over Bluetooth (HFP vendor / AVRCP / media keys, depending on the device). A **dedicated BLE PTT button** (**PTT-Z01**, e.g. YPC21) is supported via Bluetooth Low Energy scan, GATT connection, and notify on the manufacturer’s FFE0/FFE1 characteristic (press = `0x01`, release = `0x00`).
 
 ## Overview
 
@@ -10,7 +10,7 @@ The app intercepts PTT button presses and converts them into broadcast intents t
 
 ## Requirements
 
-- **Devices**: Motorola LEX F10 (default keycode 228), UROVO DT30, Ulefone (26WT, 20WT, 18T, etc.), or any device with a configurable PTT keycode; **external Bluetooth PTT mics** (e.g. Inrico BT02 and similar) when the phone exposes their PTT to apps (see below)
+- **Devices**: Motorola LEX F10 (default keycode 228), UROVO DT30, Ulefone (26WT, 20WT, 18T, etc.), or any device with a configurable PTT keycode; **external Bluetooth PTT mics** (e.g. Inrico BT02 and similar) when the phone exposes their PTT to apps (see below); **BLE PTT button PTT-Z01** when Bluetooth LE scan/connect permissions are granted (see [BLE PTT button (PTT-Z01)](#ble-ptt-button-ptt-z01))
 - **Android**: Android 5.1.1 (API 22)
 - **Target app**: HyTalk (`com.hytera.ocean` / `com.hytalkpro.ocean` where applicable)
 - **Android Studio**: Latest with Android SDK
@@ -21,6 +21,7 @@ The app intercepts PTT button presses and converts them into broadcast intents t
 - **Configurable PTT keycode**: Set via **Configure PTT Key** (press your hardware PTT → Save). Default 228 (Motorola LEX F10).
 - Intercepts only the configured PTT key and converts it to broadcast intents for HyTalk
 - **Bluetooth PTT** (optional): external mics and headsets — HFP hook, AVRCP media keys, and **HFP vendor-specific** events (used by devices such as **Inrico BT02**). Enable **Bluetooth headset / microphone PTT** in **Configure PTT Key** and tap **Save settings**.
+- **BLE PTT button PTT-Z01** (optional): LE scan by advertised name, GAP device name check when available, subscribe to **FFE1** notify. Enable **BLE PTT button (PTT-Z01)**, **Search**, connect, then **Save settings** to store the MAC; the app reconnects on startup while the option stays saved on. **Tap to toggle transmit** applies to this source too when enabled (same setting as for Bluetooth media keys).
 - Automatically launches or brings HyTalk to foreground when PTT is pressed
 - Works when the app is in the background or was killed
 - Minimal resource usage
@@ -40,7 +41,7 @@ Without this step, the app cannot receive global PTT key events.
 ### 2. Set PTT Key code
 
 1. Return to **HyTalkPTT** and tap **Configure PTT Key**.
-2. Press your device’s physical PTT button (or configure Bluetooth PTT sources as needed).
+2. Press your device’s physical PTT button and/or enable **Bluetooth headset / microphone PTT**, **Bluetooth SPP**, and/or **BLE PTT button (PTT-Z01)** as needed (for BLE: turn the button on, grant scan/connect and location if prompted, **Search**, wait for connect, then Save).
 3. Tap **Save settings**.
 
 The app stores the keycode (e.g. 228 for LEX F10, 520–522 for UROVO DT30, 381/301/131 for Ulefone). You can change it anytime by repeating these steps.
@@ -71,6 +72,19 @@ adb logcat -v time 'HyTalkPTT-BtProbe:I' 'PTTAccessibilityService:D' '*:S'
 (Quote `*:S` in zsh.) Compare finger-on vs finger-off lines; vendor AT commands may use a different company id than 85 — the **action-only** vendor receiver logs those without the category filter.
 
 If you **hear a short tone in the earpiece** when touching a **proximity sensor** but **no `HyTalkPTT-BtProbe` lines** appear, the headset is almost certainly handling the sensor **inside its own firmware** (local audio feedback only). Android apps then receive **no** separate key or vendor event for that gesture — HyTalkPTT cannot map it unless the manufacturer exposes a documented Bluetooth command stream.
+
+## BLE PTT button (PTT-Z01)
+
+Supported model: **PTT-Z01** (advertised name; manufacturer reference **YPC21**). This is **Bluetooth Low Energy**, not classic headset AVRCP.
+
+1. In **Configure PTT Key**, enable **BLE PTT button (PTT-Z01)**.
+2. Turn the button on (battery). Grant **Bluetooth scan** and **Bluetooth connect** on **Android 12+**; on older versions the OS may require **location** (fine or coarse) for LE scan — accept when prompted.
+3. Tap **Search for PTT-Z01**. The app scans for that name, connects, reads **GAP Device Name** (`0x1800` / `0x2A00`) when present to confirm **PTT-Z01**, then enables notifications on **FFE0** / **FFE1** (`0x01` = pressed, `0x00` = released).
+4. Tap **Save settings** so the device address is stored and BLE stays enabled after you leave the screen. Clearing the BLE checkbox and saving removes the stored device and disconnects.
+
+**Background operation:** BLE routing attaches to the same host as classic Bluetooth PTT — either **PTTAccessibilityService** (when accessibility is on) or **BluetoothPttService** (when only Bluetooth/BLE/SPP sources need a foreground-capable host). If accessibility is off but **only** BLE (or SPP) is enabled, the coordinator starts **BluetoothPttService** so reconnect still works.
+
+**Logs:** tag **`BlePttZ01`** for scan, GATT, and subscribe events.
 
 ## Building the Project
 
@@ -110,9 +124,9 @@ Release APK naming pattern: `HyTalkPTT-v{versionName}-{versionCode}.apk` (see `a
 ## How It Works
 
 ```
-Hardware PTT (and/or Bluetooth media keys)
+Hardware PTT (and/or Bluetooth media keys / BLE FFE1 notify)
          ↓
-PTTAccessibilityService.onKeyEvent() / MEDIA_BUTTON receiver  ← Accessibility + MediaSession
+PTTAccessibilityService.onKeyEvent() / MEDIA_BUTTON / BlePttZ01Controller  ← Accessibility + MediaSession + GATT
          ↓
     ├─ Broadcast: PTT_DOWN / PTT_UP → HyTalk (com.hytera.ocean, …)
     └─ startActivity when PTT pressed — bring HyTalk to foreground
@@ -122,7 +136,7 @@ PTTAccessibilityService.onKeyEvent() / MEDIA_BUTTON receiver  ← Accessibility 
 
 2. **Configured PTT keycode**: Stored in **SharedPreferences** (prefs name `ru.chepil.hytalkptt.ptt_prefs`, key `ptt_keycode`; default **228**). Set in **Configure PTT Key**.
 
-3. **Key paths**: Global `KeyEvent`s for the configured hardware key; Bluetooth via `MediaSession`, legacy `registerMediaButtonEventReceiver`, and vendor HFP where supported.
+3. **Key paths**: Global `KeyEvent`s for the configured hardware key; Bluetooth via `MediaSession`, legacy `registerMediaButtonEventReceiver`, and vendor HFP where supported; BLE via `BlePttZ01Controller` (LE scan, `BluetoothGatt`, FFE1 notify → same broadcast path as other PTT sources).
 
 4. **Broadcast intents**: `ACTION_DOWN` → `android.intent.action.PTT_DOWN`; `ACTION_UP` → `android.intent.action.PTT_UP` (explicit package when resolved).
 
@@ -134,10 +148,12 @@ PTTAccessibilityService.onKeyEvent() / MEDIA_BUTTON receiver  ← Accessibility 
 
 | Class | Role |
 |-------|------|
-| `PTTAccessibilityService` | Intercepts keys, optional `InputManager` injection (API 23+), sends broadcasts, Bluetooth routing |
+| `PTTAccessibilityService` | Intercepts keys, optional `InputManager` injection (API 23+), sends broadcasts, Bluetooth routing, BLE attach host |
 | `MainActivity` | Setup UI, accessibility / PTT key / programmable keys shortcuts |
-| `PttKeySetupActivity` | Learn keycode, Bluetooth source toggles, Save |
-| `PttPreferences` | SharedPreferences wrapper for keycode and PTT sources |
+| `PttKeySetupActivity` | Learn keycode, Bluetooth / SPP / BLE source toggles, LE search, Save |
+| `PttPreferences` | SharedPreferences wrapper for keycode and PTT sources (including BLE device address) |
+| `BlePttZ01Controller` | LE scan, GATT connect, FFE1 notifications, reconnect when BLE PTT is saved on |
+| `BluetoothPttCoordinator` | Starts `BluetoothPttService` when classic Bluetooth, SPP, and/or BLE PTT is enabled and accessibility is off |
 
 ## Technical Details
 
@@ -171,6 +187,9 @@ See `.github/compatibility-baseline.yml` for the documented baseline.
 
 - **BIND_ACCESSIBILITY_SERVICE**: For intercepting key events.
 - **BLUETOOTH**: Declared so some OEM Bluetooth stacks deliver headset-related broadcasts.
+- **BLUETOOTH_ADMIN**: Legacy BLE scan support on older stacks.
+- **BLUETOOTH_CONNECT** / **BLUETOOTH_SCAN**: Android 12+ connect and scan (runtime where required).
+- **ACCESS_FINE_LOCATION** / **ACCESS_COARSE_LOCATION**: LE scan on many devices when Android links scan to location (runtime on API 23+); both are declared so lint and Play policy align with coarse-only grants.
 - **SYSTEM_ALERT_WINDOW**: Optional, not used currently.
 
 ## Troubleshooting
@@ -178,7 +197,7 @@ See `.github/compatibility-baseline.yml` for the documented baseline.
 ### PTT button has no effect
 
 1. Enable **Accessibility** for HyTalkPTT (**Configure Accessibility** on the main screen).
-2. Set **Configure PTT Key** (press PTT, enable Bluetooth PTT if needed, then Save).
+2. Set **Configure PTT Key** (press PTT; enable Bluetooth PTT, SPP, and/or BLE PTT-Z01 if needed, then Save).
 3. On Motorola-type devices, use **Configure Programmable Keys (for Motorola)** and set **PTT Key app** → HyTalkPTT.
 4. Check logcat:
    ```bash
@@ -231,3 +250,4 @@ Denis Chepil — den@chepil.ru
 - UROVO DT30 (keycodes 520, 521, 522)
 - Ulefone Armor 26 WT, 20 WT, 18T (e.g. 381, 301, 131)
 - **Inrico BT02** (Bluetooth PTT via HFP vendor / `+XEVENT`); other similar Bluetooth PTT mics may work if the OS delivers comparable events
+- **PTT-Z01** (BLE GATT / FFE1 notify) with HyTalkPTT BLE option enabled and device saved in **Configure PTT Key**

@@ -18,9 +18,10 @@ final class BluetoothPttCoordinator {
         Context app = context.getApplicationContext();
         boolean bt = PttPreferences.isPttBluetoothSourceEnabled(app);
         boolean spp = PttPreferences.isPttBluetoothSppEnabled(app);
+        boolean ble = PttPreferences.isPttBleButtonEnabled(app);
         boolean a11y = PttAccessibilityHelper.isHyTalkPttServiceEnabled(app);
         Intent svc = new Intent(app, BluetoothPttService.class);
-        if (!bt && !spp) {
+        if (!bt && !spp && !ble) {
             app.stopService(svc);
             return;
         }

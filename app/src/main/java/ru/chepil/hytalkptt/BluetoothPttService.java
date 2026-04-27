@@ -17,11 +17,13 @@ public class BluetoothPttService extends Service {
     public void onCreate() {
         super.onCreate();
         BluetoothPttRoutingManager.attachHost(this);
+        BlePttZ01Controller.attachHost(this);
         Log.d(TAG, "Bluetooth PTT routing attached (no accessibility)");
     }
 
     @Override
     public void onDestroy() {
+        BlePttZ01Controller.detachHost(this);
         BluetoothPttRoutingManager.detachHost(this);
         Log.d(TAG, "Bluetooth PTT routing detached");
         super.onDestroy();

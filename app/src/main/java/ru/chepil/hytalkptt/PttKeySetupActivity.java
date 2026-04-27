@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
+import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,7 +38,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
     private static final String TAG = "PttKeySetupActivity";
 
     private static final int REQ_BT_CONNECT = 5101;
+    private static final int REQ_BLE_PERMS = 5103;
     private static final String PERM_BT_CONNECT = "android.permission.BLUETOOTH_CONNECT";
+    private static final String PERM_BT_SCAN = "android.permission.BLUETOOTH_SCAN";
     private static final int ANDROID_12_API = 31;
 
     private static WeakReference<PttKeySetupActivity> sInstanceRef;
@@ -49,6 +52,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
     private CheckBox cbBtIncludeMediaPlay;
     private CheckBox cbBtMediaToggleLatch;
     private CheckBox cbBluetoothSpp;
+    private CheckBox cbBlePtt;
+    private Button btnBlePttSearch;
+    private TextView tvBlePttHint;
     private TextView tvBluetoothHint;
     private TextView tvSppHint;
     /** While visible: captures BT / AVRCP keys for the on-screen readout. */
@@ -64,6 +70,11 @@ public class PttKeySetupActivity extends AppCompatActivity {
     /** True while this activity is resumed (learning screen is showing). */
     static boolean isSetupScreenVisible() {
         return sInstanceRef != null && sInstanceRef.get() != null;
+    }
+
+    static boolean isBleCheckboxCheckedInSetup() {
+        PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        return a != null && a.cbBlePtt != null && a.cbBlePtt.isChecked();
     }
 
     static void onMediaButtonKey(Context appContext, final KeyEvent event) {
@@ -124,6 +135,119 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
     }
 
+    static void onBlePttForUi(final boolean pressed) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        final int res = pressed ? R.string.ptt_ble_learn_press : R.string.ptt_ble_learn_release;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                a.appendLearnLine(a.getString(res));
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    static void notifyBleScanStarted(final Context appContext) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(a, a.getString(R.string.ptt_ble_scan_started), Toast.LENGTH_SHORT).show();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    static void notifyBleScanFinished(final Context appContext, final boolean deviceFound) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        final int res = deviceFound ? R.string.ptt_ble_scan_found : R.string.ptt_ble_scan_timeout;
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(a, a.getString(res), Toast.LENGTH_SHORT).show();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    static void notifyBleGattReady(final Context appContext, final String address) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(a, a.getString(R.string.ptt_ble_connected), Toast.LENGTH_LONG).show();
+                if (address != null) {
+                    a.appendLearnLine(a.getString(R.string.ptt_ble_connected) + "\n" + address);
+                }
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    static void notifyBleGapMismatch(final Context appContext) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(a, a.getString(R.string.ptt_ble_gap_mismatch), Toast.LENGTH_LONG).show();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
+    static void notifyBleScanError(final Context appContext) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(a, a.getString(R.string.ptt_ble_scan_error), Toast.LENGTH_LONG).show();
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
     private void appendLearnLine(String line) {
         if (tvKeyCode == null || line == null) {
             return;
@@ -151,6 +275,9 @@ public class PttKeySetupActivity extends AppCompatActivity {
         cbBluetoothSpp = (CheckBox) findViewById(R.id.cb_ptt_bluetooth_spp);
         tvBluetoothHint = (TextView) findViewById(R.id.tv_bluetooth_hint);
         tvSppHint = (TextView) findViewById(R.id.tv_spp_hint);
+        cbBlePtt = (CheckBox) findViewById(R.id.cb_ptt_ble_button);
+        btnBlePttSearch = (Button) findViewById(R.id.btn_ble_ptt_search);
+        tvBlePttHint = (TextView) findViewById(R.id.tv_ble_ptt_hint);
         if (cbHardware != null) {
             cbHardware.setChecked(PttPreferences.isPttHardwareSourceEnabled(this));
         }
@@ -166,7 +293,11 @@ public class PttKeySetupActivity extends AppCompatActivity {
         if (cbBluetoothSpp != null) {
             cbBluetoothSpp.setChecked(PttPreferences.isPttBluetoothSppEnabled(this));
         }
+        if (cbBlePtt != null) {
+            cbBlePtt.setChecked(PttPreferences.isPttBleButtonEnabled(this));
+        }
         updateBluetoothHintVisibility();
+        updateBleSearchRowVisibility();
 
         CompoundButton.OnCheckedChangeListener sourceListener = new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -188,6 +319,26 @@ public class PttKeySetupActivity extends AppCompatActivity {
                 }
             });
         }
+        if (cbBlePtt != null) {
+            cbBlePtt.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    updateBluetoothHintVisibility();
+                    updateBleSearchRowVisibility();
+                    if (!isChecked) {
+                        BlePttZ01Controller.disconnectSessionFromSetupUi();
+                    }
+                }
+            });
+        }
+        if (btnBlePttSearch != null) {
+            btnBlePttSearch.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    onBleSearchButtonClicked();
+                }
+            });
+        }
 
         tvKeyCode = (TextView) findViewById(R.id.tv_key_code);
         if (tvKeyCode != null) {
@@ -204,14 +355,25 @@ public class PttKeySetupActivity extends AppCompatActivity {
                     boolean hardware = cbHardware != null && cbHardware.isChecked();
                     boolean bluetooth = cbBluetooth != null && cbBluetooth.isChecked();
                     boolean bluetoothSpp = cbBluetoothSpp != null && cbBluetoothSpp.isChecked();
-                    if (!hardware && !bluetooth && !bluetoothSpp) {
+                    boolean ble = cbBlePtt != null && cbBlePtt.isChecked();
+                    if (!hardware && !bluetooth && !bluetoothSpp && !ble) {
                         Toast.makeText(PttKeySetupActivity.this, R.string.ptt_save_need_source, Toast.LENGTH_SHORT).show();
                         return;
                     }
                     boolean includeMediaPlay = cbBtIncludeMediaPlay == null || cbBtIncludeMediaPlay.isChecked();
-                    boolean mediaToggleLatch = bluetooth && cbBtMediaToggleLatch != null && cbBtMediaToggleLatch.isChecked();
+                    boolean mediaToggleLatch = (bluetooth || ble) && cbBtMediaToggleLatch != null && cbBtMediaToggleLatch.isChecked();
+                    String bleAddrCommit = null;
+                    if (ble) {
+                        String sessionAddr = BlePttZ01Controller.getSessionReadyAddress(PttKeySetupActivity.this);
+                        if (sessionAddr != null) {
+                            bleAddrCommit = sessionAddr;
+                        } else {
+                            bleAddrCommit = PttPreferences.getBlePttDeviceAddress(PttKeySetupActivity.this);
+                        }
+                    }
                     PttPreferences.commitPttConfiguration(
-                            PttKeySetupActivity.this, hardware, bluetooth, bluetoothSpp, includeMediaPlay, mediaToggleLatch, lastKeyCode);
+                            PttKeySetupActivity.this, hardware, bluetooth, bluetoothSpp, ble, bleAddrCommit,
+                            includeMediaPlay, mediaToggleLatch, lastKeyCode);
                     BluetoothPttCoordinator.syncRouting(PttKeySetupActivity.this);
                     Toast.makeText(PttKeySetupActivity.this, R.string.ptt_saved, Toast.LENGTH_SHORT).show();
                     finish();
@@ -222,6 +384,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
 
     private void updateBluetoothHintVisibility() {
         boolean on = cbBluetooth != null && cbBluetooth.isChecked();
+        boolean bleOn = cbBlePtt != null && cbBlePtt.isChecked();
         if (tvBluetoothHint != null) {
             tvBluetoothHint.setVisibility(on ? View.VISIBLE : View.GONE);
         }
@@ -229,11 +392,50 @@ public class PttKeySetupActivity extends AppCompatActivity {
             cbBtIncludeMediaPlay.setVisibility(on ? View.VISIBLE : View.GONE);
         }
         if (cbBtMediaToggleLatch != null) {
-            cbBtMediaToggleLatch.setVisibility(on ? View.VISIBLE : View.GONE);
+            cbBtMediaToggleLatch.setVisibility((on || bleOn) ? View.VISIBLE : View.GONE);
         }
         boolean sppOn = cbBluetoothSpp != null && cbBluetoothSpp.isChecked();
         if (tvSppHint != null) {
             tvSppHint.setVisibility(sppOn ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void updateBleSearchRowVisibility() {
+        boolean bleOn = cbBlePtt != null && cbBlePtt.isChecked();
+        if (tvBlePttHint != null) {
+            tvBlePttHint.setVisibility(bleOn ? View.VISIBLE : View.GONE);
+        }
+        if (btnBlePttSearch != null) {
+            btnBlePttSearch.setVisibility(bleOn ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void onBleSearchButtonClicked() {
+        if (Build.VERSION.SDK_INT >= 23 && !BlePttZ01Controller.hasBleScanAndConnect(this)) {
+            requestBleScanPermissionsIfNeeded();
+            return;
+        }
+        BlePttZ01Controller.startScanFromSetupActivity(this);
+    }
+
+    private void requestBleScanPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < 23) {
+            return;
+        }
+        try {
+            Method m = android.app.Activity.class.getMethod("requestPermissions", String[].class, int.class);
+            String[] perms;
+            if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
+                perms = new String[] { PERM_BT_SCAN, PERM_BT_CONNECT };
+            } else {
+                perms = new String[] {
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                };
+            }
+            m.invoke(this, new Object[] { perms, Integer.valueOf(REQ_BLE_PERMS) });
+        } catch (Exception e) {
+            Log.w(TAG, "requestPermissions(BLE scan) failed", e);
         }
     }
 
@@ -257,6 +459,21 @@ public class PttKeySetupActivity extends AppCompatActivity {
     }
 
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == REQ_BLE_PERMS) {
+            boolean allOk = grantResults.length > 0;
+            for (int r : grantResults) {
+                if (r != PackageManager.PERMISSION_GRANTED) {
+                    allOk = false;
+                    break;
+                }
+            }
+            if (allOk) {
+                BlePttZ01Controller.startScanFromSetupActivity(this);
+            } else {
+                Toast.makeText(this, R.string.ptt_ble_scan_error, Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         if (requestCode != REQ_BT_CONNECT) {
             return;
         }

@@ -20,6 +20,10 @@ public final class PttPreferences {
      * When true, each short AVRCP/media key press toggles TX on/off (for headsets that only send DOWN+UP in one burst).
      */
     private static final String KEY_BT_MEDIA_TOGGLE_LATCH = "ptt_bt_media_toggle_latch";
+    /** BLE PTT button (PTT-Z01 / YPC21): scan + GATT notify. */
+    private static final String KEY_PTT_SOURCE_BLE_BUTTON = "ptt_source_ble_button";
+    /** Last successfully subscribed device MAC (uppercase), empty if none. */
+    private static final String KEY_BLE_PTT_DEVICE_ADDRESS = "ptt_ble_device_address";
     /** Default PTT keycode for Motorola LEX F10. */
     public static final int DEFAULT_PTT_KEYCODE = 228;
     /** Preference key for {@link #isPttBluetoothSourceEnabled(Context)} — use with preference listeners. */
@@ -27,6 +31,8 @@ public final class PttPreferences {
     public static final String PREF_KEY_PTT_BT_INCLUDE_MEDIA_PLAY = KEY_BT_INCLUDE_MEDIA_PLAY;
     public static final String PREF_KEY_PTT_BT_MEDIA_TOGGLE_LATCH = KEY_BT_MEDIA_TOGGLE_LATCH;
     public static final String PREF_KEY_PTT_BLUETOOTH_SPP = KEY_PTT_SOURCE_BLUETOOTH_SPP;
+    public static final String PREF_KEY_PTT_BLE_BUTTON = KEY_PTT_SOURCE_BLE_BUTTON;
+    public static final String PREF_KEY_BLE_PTT_DEVICE_ADDRESS = KEY_BLE_PTT_DEVICE_ADDRESS;
 
     private PttPreferences() {}
 
@@ -89,6 +95,28 @@ public final class PttPreferences {
     }
 
     /**
+     * When true, dedicated BLE PTT button (PTT-Z01) is used after scan + pairing in Configure PTT.
+     * Default false.
+     */
+    public static boolean isPttBleButtonEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_PTT_SOURCE_BLE_BUTTON, false);
+    }
+
+    public static void setPttBleButtonEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean(KEY_PTT_SOURCE_BLE_BUTTON, enabled).apply();
+    }
+
+    /** MAC address of the BLE PTT device, or null / empty if none. */
+    public static String getBlePttDeviceAddress(Context context) {
+        String a = prefs(context).getString(KEY_BLE_PTT_DEVICE_ADDRESS, "");
+        return a != null && !a.isEmpty() ? a : null;
+    }
+
+    public static void clearBlePttDeviceAddress(Context context) {
+        prefs(context).edit().remove(KEY_BLE_PTT_DEVICE_ADDRESS).apply();
+    }
+
+    /**
      * When false, Bluetooth PTT ignores {@link android.view.KeyEvent#KEYCODE_MEDIA_PLAY} only
      * (many headsets use the same code for power / hook and dedicated PTT may use another path).
      * Default true (legacy behavior).
@@ -116,6 +144,8 @@ public final class PttPreferences {
      */
     public static void commitPttConfiguration(Context context, boolean hardware, boolean bluetooth,
             boolean bluetoothSpp,
+            boolean bleButton,
+            String bleDeviceAddressOrNullKeepIfBleOn,
             boolean bluetoothIncludeMediaPlay, boolean bluetoothMediaToggleLatch, int lastKeyCodeOrMinusOne) {
         SharedPreferences.Editor ed = prefs(context).edit();
         if (hardware && lastKeyCodeOrMinusOne >= 0) {
@@ -124,6 +154,12 @@ public final class PttPreferences {
         ed.putBoolean(KEY_PTT_SOURCE_HARDWARE, hardware);
         ed.putBoolean(KEY_PTT_SOURCE_BLUETOOTH, bluetooth);
         ed.putBoolean(KEY_PTT_SOURCE_BLUETOOTH_SPP, bluetoothSpp);
+        ed.putBoolean(KEY_PTT_SOURCE_BLE_BUTTON, bleButton);
+        if (!bleButton) {
+            ed.remove(KEY_BLE_PTT_DEVICE_ADDRESS);
+        } else if (bleDeviceAddressOrNullKeepIfBleOn != null && !bleDeviceAddressOrNullKeepIfBleOn.isEmpty()) {
+            ed.putString(KEY_BLE_PTT_DEVICE_ADDRESS, bleDeviceAddressOrNullKeepIfBleOn);
+        }
         ed.putBoolean(KEY_BT_INCLUDE_MEDIA_PLAY, bluetoothIncludeMediaPlay);
         ed.putBoolean(KEY_BT_MEDIA_TOGGLE_LATCH, bluetoothMediaToggleLatch);
         ed.commit();

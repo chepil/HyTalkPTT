@@ -6,6 +6,16 @@
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <!-- Android 12+ RFCOMM / SPP connect -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- BLE scan / connect (Android 12+); declared for merge; runtime on API 31+ -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- BLE scan on many devices when targetSdk is high (API 23+ runtime) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
     <application
         android:name=".HyTalkPttApp"
         android:allowBackup="true"
