@@ -17,11 +17,14 @@ import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.os.ParcelUuid;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import java.lang.reflect.Method;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -74,6 +77,7 @@ final class BlePttZ01Controller {
     };
 
     private BluetoothGatt mGatt;
+    private boolean mConnectingFromScan;
     /** Address of device we subscribed to this session (pending until Save writes prefs). */
     private volatile String mSessionReadyAddress;
     private boolean mReconnectScheduled;
@@ -108,9 +112,11 @@ final class BlePttZ01Controller {
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.d(TAG, "GATT connected status=" + status);
+                mConnectingFromScan = false;
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG, "GATT disconnected status=" + status);
+                mConnectingFromScan = false;
                 mSessionReadyAddress = null;
                 clearGattReference(gatt);
                 scheduleReconnectIfNeeded();
@@ -242,13 +248,17 @@ final class BlePttZ01Controller {
             if (result == null || result.getDevice() == null) {
                 return;
             }
-            String name = deviceNameFromScan(result);
-            if (name == null || !TARGET_DEVICE_NAME.equals(name.trim())) {
+            if (!isLikelyTargetFromScan(result)) {
+                return;
+            }
+            if (mConnectingFromScan || mGatt != null) {
                 return;
             }
             stopScanInternal();
             BluetoothDevice dev = result.getDevice();
-            Log.i(TAG, "Scan hit PTT-Z01 addr=" + dev.getAddress());
+            String name = deviceNameFromScan(result);
+            Log.i(TAG, "Scan candidate addr=" + dev.getAddress() + " name=" + name);
+            mConnectingFromScan = true;
             mMain.post(new Runnable() {
                 @Override
                 public void run() {
@@ -278,6 +288,11 @@ final class BlePttZ01Controller {
         sInstance.mHost = host;
         sInstance.ensureAdapter();
         sInstance.applyPrefs();
+    }
+
+    /** True when there is no active host and setup UI should attach one temporarily. */
+    static synchronized boolean needsHostForSetupUi() {
+        return sInstance == null || sInstance.mHost == null;
     }
 
     static synchronized void detachHost(Context host) {
@@ -318,9 +333,13 @@ final class BlePttZ01Controller {
      * Starts BLE scan from UI (Configure PTT). Caller should request runtime permissions first.
      */
     static void startScanFromSetupActivity(Context activityContext) {
+        if (needsHostForSetupUi()) {
+            attachHost(activityContext);
+        }
         BlePttZ01Controller c = sInstance;
-        if (c == null) {
+        if (c == null || c.mHost == null) {
             Log.w(TAG, "startScan: no host");
+            PttKeySetupActivity.notifyBleScanError(activityContext);
             return;
         }
         if (!hasBleScanAndConnect(activityContext)) {
@@ -357,17 +376,13 @@ final class BlePttZ01Controller {
     }
 
     static boolean hasBleScanAndConnect(Context ctx) {
-        PackageManager pm = ctx.getPackageManager();
-        String pkg = ctx.getPackageName();
         if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
-            return pm.checkPermission(PERM_BT_SCAN, pkg) == PackageManager.PERMISSION_GRANTED
-                    && pm.checkPermission(PERM_BT_CONNECT, pkg) == PackageManager.PERMISSION_GRANTED;
+            return isRuntimePermissionGranted(ctx, PERM_BT_SCAN)
+                    && isRuntimePermissionGranted(ctx, PERM_BT_CONNECT);
         }
         if (Build.VERSION.SDK_INT >= ANDROID_6_API) {
-            boolean fine = pm.checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION, pkg)
-                    == PackageManager.PERMISSION_GRANTED;
-            boolean coarse = pm.checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION, pkg)
-                    == PackageManager.PERMISSION_GRANTED;
+            boolean fine = isRuntimePermissionGranted(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION);
+            boolean coarse = isRuntimePermissionGranted(ctx, android.Manifest.permission.ACCESS_COARSE_LOCATION);
             return fine || coarse;
         }
         return true;
@@ -512,6 +527,44 @@ final class BlePttZ01Controller {
             }
         }
         return null;
+    }
+
+    private static boolean isLikelyTargetFromScan(ScanResult result) {
+        String name = deviceNameFromScan(result);
+        if (name != null) {
+            String n = name.trim();
+            if (TARGET_DEVICE_NAME.equals(n) || n.startsWith("PTT-Z")) {
+                return true;
+            }
+        }
+        if (result.getScanRecord() == null) {
+            return false;
+        }
+        List<ParcelUuid> uuids = result.getScanRecord().getServiceUuids();
+        if (uuids == null) {
+            return false;
+        }
+        for (ParcelUuid pu : uuids) {
+            if (pu != null && UUID_SVC_FFE0.equals(pu.getUuid())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRuntimePermissionGranted(Context context, String permission) {
+        if (Build.VERSION.SDK_INT < ANDROID_6_API) {
+            return true;
+        }
+        try {
+            Method m = Context.class.getMethod("checkSelfPermission", String.class);
+            Object r = m.invoke(context, permission);
+            return r instanceof Integer && ((Integer) r).intValue() == PackageManager.PERMISSION_GRANTED;
+        } catch (Exception e) {
+            // Fallback: if reflection fails, keep old behavior.
+            return context.getPackageManager().checkPermission(permission, context.getPackageName())
+                    == PackageManager.PERMISSION_GRANTED;
+        }
     }
 
     private static String characteristicValueAsUtf8Trimmed(byte[] raw) {

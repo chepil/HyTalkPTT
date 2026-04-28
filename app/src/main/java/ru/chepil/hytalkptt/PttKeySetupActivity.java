@@ -55,6 +55,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
     private CheckBox cbBlePtt;
     private Button btnBlePttSearch;
     private TextView tvBlePttHint;
+    private TextView tvBlePermissionStatus;
     private TextView tvBluetoothHint;
     private TextView tvSppHint;
     /** While visible: captures BT / AVRCP keys for the on-screen readout. */
@@ -63,6 +64,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
 
     private AudioManager.OnAudioFocusChangeListener mSetupAudioFocusListener;
     private boolean mSetupHasAudioFocus;
+    private boolean mBleHostAttachedBySetupUi;
 
     /** Last keyCode from ACTION_DOWN (repeatCount == 0). -1 if none yet. */
     private int lastKeyCode = -1;
@@ -278,6 +280,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
         cbBlePtt = (CheckBox) findViewById(R.id.cb_ptt_ble_button);
         btnBlePttSearch = (Button) findViewById(R.id.btn_ble_ptt_search);
         tvBlePttHint = (TextView) findViewById(R.id.tv_ble_ptt_hint);
+        tvBlePermissionStatus = (TextView) findViewById(R.id.tv_ble_permission_status);
         if (cbHardware != null) {
             cbHardware.setChecked(PttPreferences.isPttHardwareSourceEnabled(this));
         }
@@ -298,6 +301,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
         updateBluetoothHintVisibility();
         updateBleSearchRowVisibility();
+        updateBlePermissionStatus();
 
         CompoundButton.OnCheckedChangeListener sourceListener = new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -325,6 +329,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     updateBluetoothHintVisibility();
                     updateBleSearchRowVisibility();
+                    updateBlePermissionStatus();
                     if (!isChecked) {
                         BlePttZ01Controller.disconnectSessionFromSetupUi();
                     }
@@ -408,9 +413,13 @@ public class PttKeySetupActivity extends AppCompatActivity {
         if (btnBlePttSearch != null) {
             btnBlePttSearch.setVisibility(bleOn ? View.VISIBLE : View.GONE);
         }
+        if (tvBlePermissionStatus != null) {
+            tvBlePermissionStatus.setVisibility(bleOn ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void onBleSearchButtonClicked() {
+        updateBlePermissionStatus();
         if (Build.VERSION.SDK_INT >= 23 && !BlePttZ01Controller.hasBleScanAndConnect(this)) {
             requestBleScanPermissionsIfNeeded();
             return;
@@ -443,8 +452,7 @@ public class PttKeySetupActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT < ANDROID_12_API) {
             return;
         }
-        if (getPackageManager().checkPermission(PERM_BT_CONNECT, getPackageName())
-                == PackageManager.PERMISSION_GRANTED) {
+        if (isRuntimePermissionGranted(PERM_BT_CONNECT)) {
             return;
         }
         if (Build.VERSION.SDK_INT < 23) {
@@ -467,11 +475,17 @@ public class PttKeySetupActivity extends AppCompatActivity {
                     break;
                 }
             }
+            if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < ANDROID_12_API) {
+                boolean fine = isRuntimePermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION);
+                boolean coarse = isRuntimePermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION);
+                allOk = fine || coarse;
+            }
             if (allOk) {
                 BlePttZ01Controller.startScanFromSetupActivity(this);
             } else {
                 Toast.makeText(this, R.string.ptt_ble_scan_error, Toast.LENGTH_LONG).show();
             }
+            updateBlePermissionStatus();
             return;
         }
         if (requestCode != REQ_BT_CONNECT) {
@@ -482,6 +496,65 @@ public class PttKeySetupActivity extends AppCompatActivity {
         } else {
             Toast.makeText(this, R.string.ptt_spp_need_connect_permission, Toast.LENGTH_LONG).show();
         }
+        updateBlePermissionStatus();
+    }
+
+    private boolean isRuntimePermissionGranted(String permission) {
+        if (Build.VERSION.SDK_INT < 23) {
+            return true;
+        }
+        try {
+            Method m = android.content.Context.class.getMethod("checkSelfPermission", String.class);
+            Object r = m.invoke(this, permission);
+            return r instanceof Integer && ((Integer) r).intValue() == PackageManager.PERMISSION_GRANTED;
+        } catch (Exception e) {
+            return getPackageManager().checkPermission(permission, getPackageName())
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    private void updateBlePermissionStatus() {
+        if (tvBlePermissionStatus == null) {
+            return;
+        }
+        if (cbBlePtt == null || !cbBlePtt.isChecked()) {
+            tvBlePermissionStatus.setVisibility(View.GONE);
+            return;
+        }
+        tvBlePermissionStatus.setVisibility(View.VISIBLE);
+        int textRes;
+        int color;
+        if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
+            boolean scan = isRuntimePermissionGranted(PERM_BT_SCAN);
+            boolean connect = isRuntimePermissionGranted(PERM_BT_CONNECT);
+            boolean fine = isRuntimePermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION);
+            boolean coarse = isRuntimePermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION);
+            if (!scan || !connect) {
+                textRes = R.string.ptt_ble_permission_status_need_nearby;
+                color = 0xFFFFAA66;
+            } else if (!fine && !coarse) {
+                textRes = R.string.ptt_ble_permission_status_warn_location;
+                color = 0xFFFFAA66;
+            } else {
+                textRes = R.string.ptt_ble_permission_status_ok;
+                color = 0xFF66CC99;
+            }
+        } else if (Build.VERSION.SDK_INT >= 23) {
+            boolean fine = isRuntimePermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION);
+            boolean coarse = isRuntimePermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION);
+            if (fine || coarse) {
+                textRes = R.string.ptt_ble_permission_status_ok;
+                color = 0xFF66CC99;
+            } else {
+                textRes = R.string.ptt_ble_permission_status_need_location;
+                color = 0xFFFFAA66;
+            }
+        } else {
+            textRes = R.string.ptt_ble_permission_status_ok;
+            color = 0xFF66CC99;
+        }
+        tvBlePermissionStatus.setText(textRes);
+        tvBlePermissionStatus.setTextColor(color);
     }
 
     private void refreshSetupInstructionBanner() {
@@ -502,7 +575,14 @@ public class PttKeySetupActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         sInstanceRef = new WeakReference<PttKeySetupActivity>(this);
+        if (BlePttZ01Controller.needsHostForSetupUi()) {
+            BlePttZ01Controller.attachHost(this);
+            mBleHostAttachedBySetupUi = true;
+        } else {
+            mBleHostAttachedBySetupUi = false;
+        }
         refreshSetupInstructionBanner();
+        updateBlePermissionStatus();
         PTTAccessibilityService.pauseBluetoothMediaForKeyLearning();
         if (cbBluetoothSpp != null && cbBluetoothSpp.isChecked()) {
             requestSppConnectPermissionIfNeeded();
@@ -516,6 +596,10 @@ public class PttKeySetupActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         stopBluetoothKeyCapture();
+        if (mBleHostAttachedBySetupUi) {
+            BlePttZ01Controller.detachHost(this);
+            mBleHostAttachedBySetupUi = false;
+        }
         // Clear before resuming service MediaSession, else isSetupScreenVisible() stays true during resume.
         if (sInstanceRef != null && sInstanceRef.get() == this) {
             sInstanceRef = null;

@@ -21,6 +21,10 @@
     <string name="ptt_ble_connected">BLE PTT подключён. Нажмите «Сохранить», чтобы сохранить устройство.</string>
     <string name="ptt_ble_gap_mismatch">Имя устройства не PTT-Z01 — отключено</string>
     <string name="ptt_ble_scan_error">Bluetooth выключен или нет разрешений (скан / подключение / геолокация)</string>
+    <string name="ptt_ble_permission_status_ok">Разрешения BLE: выданы</string>
+    <string name="ptt_ble_permission_status_need_nearby">Разрешения BLE: выдайте «Устройства поблизости» (скан/подключение)</string>
+    <string name="ptt_ble_permission_status_need_location">Разрешения BLE: выдайте геолокацию (точную или приблизительную)</string>
+    <string name="ptt_ble_permission_status_warn_location">Разрешения BLE: «Устройства поблизости» выданы, но геолокация отключена/запрещена (на некоторых устройствах это блокирует сканирование)</string>
     <string name="ptt_ble_learn_press">BLE PTT: нажатие</string>
     <string name="ptt_ble_learn_release">BLE PTT: отпускание</string>
     <string name="ptt_spp_hint">Сначала сопрягите устройство в настройках Bluetooth. SPP использует стандартный UUID последовательного порта; подключаемся к спаренному Inrico B02PTT*, иначе к первому спаренному устройству. На Android 12+ нужно разрешение «Подключение Bluetooth». Неизвестные байты показываются во всплывающем сообщении для сопоставления новых гарнитур.</string>

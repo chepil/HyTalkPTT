@@ -21,6 +21,10 @@
     <string name="ptt_ble_connected">BLE PTT connected. Tap Save to store the device.</string>
     <string name="ptt_ble_gap_mismatch">Device name is not PTT-Z01 — disconnected</string>
     <string name="ptt_ble_scan_error">Bluetooth is off or permissions missing (scan / connect / location)</string>
+    <string name="ptt_ble_permission_status_ok">BLE permissions: granted</string>
+    <string name="ptt_ble_permission_status_need_nearby">BLE permissions: grant Nearby devices (scan/connect)</string>
+    <string name="ptt_ble_permission_status_need_location">BLE permissions: grant Location (Fine or Coarse)</string>
+    <string name="ptt_ble_permission_status_warn_location">BLE permissions: Nearby devices granted, but Location is off/denied (some devices require it for scan)</string>
     <string name="ptt_ble_learn_press">BLE PTT: press</string>
     <string name="ptt_ble_learn_release">BLE PTT: release</string>
     <string name="ptt_spp_hint">Pair the device in system Bluetooth settings first. SPP uses the standard serial UUID; we connect to a bonded Inrico B02PTT* device if present, otherwise the first bonded device. On Android 12+ grant the Bluetooth connect permission. Unknown bytes are shown in a toast so you can map new headsets.</string>

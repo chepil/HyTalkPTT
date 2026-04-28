@@ -91,6 +91,17 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/tv_ble_permission_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="8dp"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:textColor="#999999"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/tv_save_bluetooth_reminder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
