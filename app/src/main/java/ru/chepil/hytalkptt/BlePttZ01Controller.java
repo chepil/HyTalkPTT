@@ -116,6 +116,9 @@ final class BlePttZ01Controller {
                 gatt.discoverServices();
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG, "GATT disconnected status=" + status);
+                if (status != BluetoothGatt.GATT_SUCCESS) {
+                    notifyConnectFailureFromSetupUi(status);
+                }
                 mConnectingFromScan = false;
                 mSessionReadyAddress = null;
                 clearGattReference(gatt);
@@ -377,8 +380,11 @@ final class BlePttZ01Controller {
 
     static boolean hasBleScanAndConnect(Context ctx) {
         if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
-            return isRuntimePermissionGranted(ctx, PERM_BT_SCAN)
-                    && isRuntimePermissionGranted(ctx, PERM_BT_CONNECT);
+            boolean scan = isRuntimePermissionGranted(ctx, PERM_BT_SCAN);
+            boolean connect = isRuntimePermissionGranted(ctx, PERM_BT_CONNECT);
+            boolean fine = isRuntimePermissionGranted(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION);
+            boolean coarse = isRuntimePermissionGranted(ctx, android.Manifest.permission.ACCESS_COARSE_LOCATION);
+            return scan && connect && (fine || coarse);
         }
         if (Build.VERSION.SDK_INT >= ANDROID_6_API) {
             boolean fine = isRuntimePermissionGranted(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION);
@@ -576,5 +582,15 @@ final class BlePttZ01Controller {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private void notifyConnectFailureFromSetupUi(final int status) {
+        final boolean likelyBusy = status == 8 || status == 133 || status == 257;
+        mMain.post(new Runnable() {
+            @Override
+            public void run() {
+                PttKeySetupActivity.notifyBleConnectStatus(mApp, status, likelyBusy);
+            }
+        });
     }
 }

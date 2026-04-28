@@ -19,6 +19,8 @@
     <string name="ptt_ble_scan_timeout">PTT-Z01 not found (timeout)</string>
     <string name="ptt_ble_scan_found">PTT-Z01 found, connecting…</string>
     <string name="ptt_ble_connected">BLE PTT connected. Tap Save to store the device.</string>
+    <string name="ptt_ble_connect_failed">BLE connect failed (status %1$d). If the button is connected in another app (e.g. BLE Scanner), disconnect it there and retry.</string>
+    <string name="ptt_ble_device_busy">BLE button is busy in another app (status %1$d). Disconnect it in BLE Scanner and retry.</string>
     <string name="ptt_ble_gap_mismatch">Device name is not PTT-Z01 — disconnected</string>
     <string name="ptt_ble_scan_error">Bluetooth is off or permissions missing (scan / connect / location)</string>
     <string name="ptt_ble_permission_status_ok">BLE permissions: granted</string>

@@ -214,6 +214,26 @@ public class PttKeySetupActivity extends AppCompatActivity {
         }
     }
 
+    static void notifyBleConnectStatus(final Context appContext, final int status, final boolean likelyBusy) {
+        final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
+        if (a == null) {
+            return;
+        }
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                int res = likelyBusy ? R.string.ptt_ble_device_busy : R.string.ptt_ble_connect_failed;
+                Toast.makeText(a, a.getString(res, Integer.valueOf(status)), Toast.LENGTH_LONG).show();
+                a.appendLearnLine(a.getString(res, Integer.valueOf(status)));
+            }
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            r.run();
+        } else {
+            a.runOnUiThread(r);
+        }
+    }
+
     static void notifyBleGapMismatch(final Context appContext) {
         final PttKeySetupActivity a = sInstanceRef != null ? sInstanceRef.get() : null;
         if (a == null) {
@@ -435,7 +455,12 @@ public class PttKeySetupActivity extends AppCompatActivity {
             Method m = android.app.Activity.class.getMethod("requestPermissions", String[].class, int.class);
             String[] perms;
             if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
-                perms = new String[] { PERM_BT_SCAN, PERM_BT_CONNECT };
+                perms = new String[] {
+                        PERM_BT_SCAN,
+                        PERM_BT_CONNECT,
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                };
             } else {
                 perms = new String[] {
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -468,14 +493,14 @@ public class PttKeySetupActivity extends AppCompatActivity {
 
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (requestCode == REQ_BLE_PERMS) {
-            boolean allOk = grantResults.length > 0;
-            for (int r : grantResults) {
-                if (r != PackageManager.PERMISSION_GRANTED) {
-                    allOk = false;
-                    break;
-                }
-            }
-            if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < ANDROID_12_API) {
+            boolean allOk;
+            if (Build.VERSION.SDK_INT >= ANDROID_12_API) {
+                boolean scan = isRuntimePermissionGranted(PERM_BT_SCAN);
+                boolean connect = isRuntimePermissionGranted(PERM_BT_CONNECT);
+                boolean fine = isRuntimePermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION);
+                boolean coarse = isRuntimePermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION);
+                allOk = scan && connect && (fine || coarse);
+            } else {
                 boolean fine = isRuntimePermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION);
                 boolean coarse = isRuntimePermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION);
                 allOk = fine || coarse;

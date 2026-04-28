@@ -19,6 +19,8 @@
     <string name="ptt_ble_scan_timeout">PTT-Z01 не найдена (таймаут)</string>
     <string name="ptt_ble_scan_found">PTT-Z01 найдена, подключение…</string>
     <string name="ptt_ble_connected">BLE PTT подключён. Нажмите «Сохранить», чтобы сохранить устройство.</string>
+    <string name="ptt_ble_connect_failed">Ошибка подключения BLE (status %1$d). Если кнопка подключена в другом приложении (например, BLE Scanner), отключите её там и повторите.</string>
+    <string name="ptt_ble_device_busy">BLE-кнопка занята другим приложением (status %1$d). Отключите её в BLE Scanner и повторите.</string>
     <string name="ptt_ble_gap_mismatch">Имя устройства не PTT-Z01 — отключено</string>
     <string name="ptt_ble_scan_error">Bluetooth выключен или нет разрешений (скан / подключение / геолокация)</string>
     <string name="ptt_ble_permission_status_ok">Разрешения BLE: выданы</string>
